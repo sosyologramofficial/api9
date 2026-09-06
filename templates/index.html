@@ -382,6 +382,109 @@
             box-shadow: 0 0 8px var(--violet-glow);
         }
 
+        /* Segmented button group */
+        .seg-group {
+            display: flex;
+            gap: 6px;
+            flex-wrap: nowrap;
+        }
+        .seg-group--wrap { flex-wrap: wrap; }
+        .seg-btn {
+            flex: 1;
+            min-width: 80px;
+            padding: 8px 12px;
+            background: var(--panel);
+            border: 1px solid var(--border) !important;
+            border-radius: var(--radius-sm);
+            color: var(--text-dim);
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition);
+            white-space: nowrap;
+            box-shadow: none !important;
+            transform: none !important;
+            text-transform: none;
+            letter-spacing: normal;
+        }
+        .seg-btn::after { display: none !important; }
+        .seg-btn:hover {
+            background: var(--elevated);
+            border-color: var(--border-bright) !important;
+            color: var(--text);
+            transform: none !important;
+            box-shadow: none !important;
+        }
+        .seg-btn.active {
+            background: var(--violet-dim);
+            border-color: var(--violet) !important;
+            color: var(--violet);
+            font-weight: 600;
+            box-shadow: none !important;
+            transform: none !important;
+        }
+
+        /* TTS Range Sliders — thumb tam uca yapışır */
+        .tts-range {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 99px;
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            outline: none;
+            cursor: pointer;
+            /* padding sıfır — thumb kenar hizalaması için */
+            padding: 0;
+            margin: 6px 0;
+            box-sizing: border-box;
+        }
+        .tts-range::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--violet);
+            border: 2px solid rgba(139,92,246,0.5);
+            box-shadow: 0 0 8px var(--violet-glow);
+            cursor: pointer;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        .tts-range::-webkit-slider-thumb:hover {
+            background: #a78bfa;
+            box-shadow: 0 0 14px var(--violet-glow);
+        }
+        .tts-range::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--violet);
+            border: 2px solid rgba(139,92,246,0.5);
+            box-shadow: 0 0 8px var(--violet-glow);
+            cursor: pointer;
+        }
+        /* Emotion tag chips */
+        .tts-emotion-chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 5px 14px;
+            border-radius: 99px;
+            border: 1px solid var(--border-bright);
+            background: var(--input-bg);
+            color: var(--text-dim);
+            font-size: 0.78rem;
+            cursor: pointer;
+            transition: background 0.18s, color 0.18s, border-color 0.18s;
+            user-select: none;
+        }
+        .tts-emotion-chip.active {
+            background: var(--violet-dim);
+            border-color: var(--violet);
+            color: var(--violet);
+        }
         .topbar-settings-btn {
             background: var(--violet-dim);
             border: 1px solid var(--border-bright);
@@ -607,7 +710,7 @@
         }
 
         textarea {
-            resize: vertical;
+            resize: none;
             min-height: 110px;
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.82rem;
@@ -1004,7 +1107,7 @@
 
         .task-info {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
             gap: 0.625rem;
             margin-top: 1rem;
         }
@@ -1055,14 +1158,9 @@
 
         .task-meta-item span {
             display: block;
-        }
-
-        @media (max-width: 600px) {
-            .task-meta-item span {
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-            }
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         /* Status badges */
@@ -1189,7 +1287,6 @@
 
         .pagination button::after { display: none; }
 
-        .pagination .page-btn { }
         .pagination .page-btn.active {
             background: var(--violet);
             color: #fff;
@@ -1231,7 +1328,7 @@
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.8rem;
             text-align: center;
-            -moz-appearance: textfield;
+            appearance: textfield;
         }
         .pagination-goto input[type="number"]::-webkit-inner-spin-button,
         .pagination-goto input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
@@ -1343,6 +1440,22 @@
             .content {
                 padding: 1rem;
             }
+            /* Music mode buttons 2x2 grid on mobile */
+            #musicModeGroup.seg-group {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 6px;
+            }
+            #musicModeGroup .seg-btn {
+                min-width: 0;
+                font-size: 0.72rem;
+                padding: 8px 6px;
+            }
+            #musicInstrumentalGroup.seg-group {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 6px;
+            }
         }
 
         @media (min-width: 1200px) {
@@ -1390,6 +1503,13 @@
             <a class="nav-item" id="nav-tasks" onclick="showPage('page-tasks', this)">
                 <span class="nav-icon">📋</span>
                 <span class="nav-label">Task Durumu</span>
+            </a>
+
+            <div class="nav-section-label">Döküman</div>
+
+            <a class="nav-item" href="/api-doc" target="_blank">
+                <span class="nav-icon">📖</span>
+                <span class="nav-label">API Dokümantasyonu</span>
             </a>
         </nav>
 
@@ -1485,10 +1605,12 @@
                 <div class="card">
                     <!-- Main Tabs -->
                     <div class="tab-nav">
-                        <button class="tab-btn active" onclick="switchTab('tab-t2i')"><span class="tab-icon">🖼️</span> Text to Image</button>
-                        <button class="tab-btn" onclick="switchTab('tab-i2i')"><span class="tab-icon">🔄</span> Image to Image</button>
-                        <button class="tab-btn" onclick="switchTab('tab-t2v')"><span class="tab-icon">🎬</span> Text to Video</button>
-                        <button class="tab-btn" onclick="switchTab('tab-i2v')"><span class="tab-icon">🎞️</span> Image to Video</button>
+                        <button id="btn-tab-t2i" class="tab-btn active" onclick="switchTab('tab-t2i')"><span class="tab-icon">🖼️</span> Text to Image</button>
+                        <button id="btn-tab-i2i" class="tab-btn" onclick="switchTab('tab-i2i')"><span class="tab-icon">🔄</span> Image to Image</button>
+                        <button id="btn-tab-t2v" class="tab-btn" onclick="switchTab('tab-t2v')"><span class="tab-icon">🎬</span> Text to Video</button>
+                        <button id="btn-tab-i2v" class="tab-btn" onclick="switchTab('tab-i2v')"><span class="tab-icon">🎞️</span> Image to Video</button>
+                        <button id="btn-tab-tts" class="tab-btn" onclick="switchTab('tab-tts')" style="display: none;"><span class="tab-icon">🔊</span> Text to Speech</button>
+                        <button id="btn-tab-music" class="tab-btn" onclick="switchTab('tab-music')" style="display: none;"><span class="tab-icon">🎵</span> Music</button>
                     </div>
 
                     <!-- Text to Image -->
@@ -1496,17 +1618,15 @@
                         <div class="form-group">
                             <label for="imagePrompt">prompt *</label>
                             <div class="prompt-wrap">
-                                <textarea id="imagePrompt" maxlength="4000" oninput="updateCounter('imagePrompt','imagePromptCounter',4000)" placeholder="Oluşturmak istediğiniz görselin detaylı açıklaması..."></textarea>
-                                <span id="imagePromptCounter" class="prompt-counter">0/4000</span>
+                                <textarea id="imagePrompt" maxlength="5000" oninput="updateCounter('imagePrompt','imagePromptCounter',5000)" placeholder="Oluşturmak istediğiniz görselin detaylı açıklaması..."></textarea>
+                                <span id="imagePromptCounter" class="prompt-counter">0/5000</span>
                             </div>
                         </div>
                         <div class="form-row cols-2">
                             <div class="form-group">
                                 <label for="imageModel">model</label>
                                 <select id="imageModel" onchange="onImageModelChange()">
-                                    <option value="NANO_BANANA_PRO" selected>NANO_BANANA_PRO</option>
-                                    <option value="NANO_BANANA">NANO_BANANA</option>
-                                    <option value="NANO_BANANA_2">NANO_BANANA_2</option>
+                                    <option value="" disabled selected>— Ayarları Kaydedin —</option>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -1518,6 +1638,8 @@
                                     <option value="3:4">3:4</option>
                                     <option value="4:3">4:3</option>
                                     <option value="3:2">3:2</option>
+                                    <option value="2:3">2:3</option>
+                                    <option value="AUTO">AUTO</option>
                                 </select>
                             </div>
                         </div>
@@ -1529,7 +1651,7 @@
                                 <option value="4K">4K</option>
                             </select>
                         </div>
-                        <small style="color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.75rem; font-size: 0.75rem;"><span style="font-size:0.75rem; flex-shrink:0;">ℹ️</span>NANO_BANANA_PRO ve NANO_BANANA_2 modelleri Resolution seçeneği sunar.</small>
+                        <small id="imageModelHelp" style="color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.75rem; font-size: 0.75rem;"><span style="font-size:0.75rem; flex-shrink:0;">ℹ️</span></small>
                         <button onclick="generateImage()">✨ Görsel Oluştur</button>
                         <div id="imageResponse" class="response-box" style="display:none;"></div>
                         <div id="imageReadable" style="display:none; margin-top:1.25rem; width:100%; max-width:100%; overflow:hidden;"></div>
@@ -1540,17 +1662,15 @@
                         <div class="form-group">
                             <label for="i2iPrompt">prompt *</label>
                             <div class="prompt-wrap">
-                                <textarea id="i2iPrompt" maxlength="4000" oninput="updateCounter('i2iPrompt','i2iPromptCounter',4000)" placeholder="Görseli nasıl dönüştürmek istediğinizi açıklayın..."></textarea>
-                                <span id="i2iPromptCounter" class="prompt-counter">0/4000</span>
+                                <textarea id="i2iPrompt" maxlength="5000" oninput="updateCounter('i2iPrompt','i2iPromptCounter',5000)" placeholder="Görseli nasıl dönüştürmek istediğinizi açıklayın..."></textarea>
+                                <span id="i2iPromptCounter" class="prompt-counter">0/5000</span>
                             </div>
                         </div>
                         <div class="form-row cols-2">
                             <div class="form-group">
                                 <label for="i2iModel">model</label>
                                 <select id="i2iModel" onchange="onI2iModelChange()">
-                                    <option value="NANO_BANANA_PRO" selected>NANO_BANANA_PRO</option>
-                                    <option value="NANO_BANANA">NANO_BANANA</option>
-                                    <option value="NANO_BANANA_2">NANO_BANANA_2</option>
+                                    <option value="" disabled selected>— Ayarları Kaydedin —</option>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -1562,6 +1682,8 @@
                                     <option value="3:4">3:4</option>
                                     <option value="4:3">4:3</option>
                                     <option value="3:2">3:2</option>
+                                    <option value="2:3">2:3</option>
+                                    <option value="AUTO">AUTO</option>
                                 </select>
                             </div>
                         </div>
@@ -1581,7 +1703,7 @@
                             </div>
                             
                         </div>
-                        <small style="color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.75rem; font-size: 0.75rem;"><span style="font-size:0.75rem; flex-shrink:0;">ℹ️</span>NANO_BANANA_PRO ve NANO_BANANA_2 modelleri Resolution seçeneği sunar.</small>
+                        <small id="i2iModelHelp" style="color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.75rem; font-size: 0.75rem;"><span style="font-size:0.75rem; flex-shrink:0;">ℹ️</span></small>
                         <button onclick="generateImageToImage()">🔄 Görsel Dönüştür</button>
                         <div id="i2iResponse" class="response-box" style="display:none;"></div>
                         <div id="i2iReadable" style="display:none; margin-top:1.25rem; width:100%; max-width:100%; overflow:hidden;"></div>
@@ -1599,9 +1721,8 @@
                         <div class="form-row cols-2">
                             <div class="form-group">
                                 <label for="t2vModel">model</label>
-                                <select id="t2vModel">
-                                    <option value="SORA_2" selected>SORA_2</option>
-                                    <option value="VEO_3">VEO_3</option>
+                                <select id="t2vModel" onchange="onT2vModelChange()">
+                                    <option value="" disabled selected>— Ayarları Kaydedin —</option>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -1612,7 +1733,22 @@
                                 </select>
                             </div>
                         </div>
-                        <small style="color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.75rem; font-size: 0.75rem;"><span style="font-size:0.75rem; flex-shrink:0;">ℹ️</span>SORA_2: 10 saniye · VEO_3: 8 saniye · VEO_3'te End Frame ve Reference Images desteği mevcuttur.</small>
+                        <!-- Model Spec Row: Resolution + Duration -->
+                        <div class="form-row cols-2">
+                            <div class="form-group">
+                                <label>resolution</label>
+                                <select id="t2vResolutionDisplay" disabled>
+                                    <option>720p</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>duration</label>
+                                <select id="t2vDurationDisplay" disabled>
+                                    <option>10 saniye</option>
+                                </select>
+                            </div>
+                        </div>
+                        <small id="t2vModelHelp" style="color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.75rem; font-size: 0.75rem;"><span style="font-size:0.75rem; flex-shrink:0;">ℹ️</span></small>
                         <button onclick="generateTextToVideo()">🎬 Video Oluştur</button>
                         <div id="t2vResponse" class="response-box" style="display:none;"></div>
                         <div id="t2vReadable" style="display:none; margin-top:1.25rem; width:100%; max-width:100%; overflow:hidden;"></div>
@@ -1631,16 +1767,32 @@
                             <div class="form-group">
                                 <label for="i2vModel">model</label>
                                 <select id="i2vModel" onchange="onI2vModelChange()">
-                                    <option value="SORA_2" selected>SORA_2</option>
-                                    <option value="VEO_3">VEO_3</option>
+                                    <option value="" disabled selected>— Ayarları Kaydedin —</option>
                                 </select>
                             </div>
-                            <div class="form-group">
+                            <div class="form-group" id="i2vSizeGroup">
                                 <label for="i2vSize">size</label>
                                 <select id="i2vSize">
                                     <option value="16:9" selected>16:9</option>
                                     <option value="9:16">9:16</option>
                                 </select>
+                            </div>
+                        </div>
+                        <!-- Model Spec Row: Resolution + Duration -->
+                        <div class="form-row cols-2" id="i2vSpecRow">
+                            <div class="form-group">
+                                <label for="i2vResolution">resolution</label>
+                                <select id="i2vResolution" onchange="onI2vResolutionChange()">
+                                    <option value="720p" selected>720p</option>
+                                    <option value="512p">512p</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="i2vDurationSelect">duration</label>
+                                <select id="i2vDurationSelect" disabled onchange="onI2vDurationChange()">
+                                    <option value="5">5 saniye</option>
+                                </select>
+                                <input type="hidden" id="i2vDuration" value="5">
                             </div>
                         </div>
                         <!-- Sub Tabs -->
@@ -1676,10 +1828,149 @@
                                 
                             </div>
                         </div>
-                        <small style="color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.75rem; font-size: 0.75rem;"><span style="font-size:0.75rem; flex-shrink:0;">ℹ️</span>SORA_2: 10 saniye · VEO_3: 8 saniye · VEO_3'te End Frame ve Reference Images desteği mevcuttur.</small>
+                        <small id="i2vModelHelp" style="color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.75rem; font-size: 0.75rem;"><span style="font-size:0.75rem; flex-shrink:0;">ℹ️</span></small>
                         <button onclick="generateImageToVideo()">🎞️ Video Oluştur</button>
                         <div id="i2vResponse" class="response-box" style="display:none;"></div>
                         <div id="i2vReadable" style="display:none; margin-top:1.25rem; width:100%; max-width:100%; overflow:hidden;"></div>
+                    </div>
+
+                    <!-- Text to Speech -->
+                    <div class="tab-panel" id="tab-tts" style="display:none;">
+
+                        <!-- Model + Ses -->
+                        <div class="form-row cols-2">
+                            <div class="form-group">
+                                <label for="ttsModel">model</label>
+                                <select id="ttsModel">
+                                    <option value="" disabled selected>— Ayarları Kaydedin —</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="ttsVoice">ses</label>
+                                <div style="display:flex; gap:8px; align-items:stretch;">
+                                    <select id="ttsVoice" style="flex:1;">
+                                        <option value="" disabled selected>— Sesleri yükleyin —</option>
+                                    </select>
+                                    <button type="button" onclick="loadTtsVoices()" style="flex-shrink:0; padding:0 14px; font-size:0.78rem; white-space:nowrap;">🔄 Yükle</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Emotion -->
+                        <div class="form-group" id="ttsEmotionGroup">
+                            <label>duygu (emotion)</label>
+                            <div id="ttsEmotionContainer" style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; min-height:36px; padding:6px 0;"></div>
+                        </div>
+
+                        <!-- Text -->
+                        <div class="form-group">
+                            <label for="ttsText">metin *</label>
+                            <div class="prompt-wrap">
+                                <textarea id="ttsText" maxlength="6000" oninput="updateCounter('ttsText','ttsTextCounter',6000)" placeholder="Seslendirilecek metni girin..." style="min-height:100px;"></textarea>
+                                <span id="ttsTextCounter" class="prompt-counter">0/6000</span>
+                            </div>
+                        </div>
+
+                        <!-- Speed & Pitch -->
+                        <div class="form-row cols-2">
+                            <div class="form-group">
+                                <label>hız — <span id="ttsSpeedVal">1.0</span></label>
+                                <input type="range" id="ttsSpeed" class="tts-range" min="0.5" max="2.0" step="0.1" value="1.0"
+                                       oninput="syncTtsSlider(this,'ttsSpeedVal')">
+                                <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--text-muted); margin-top:2px;">
+                                    <span>0.5×</span><span>2.0×</span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>perde — <span id="ttsPitchVal">0</span></label>
+                                <input type="range" id="ttsPitch" class="tts-range" min="-12" max="12" step="1" value="0"
+                                       oninput="syncTtsSlider(this,'ttsPitchVal')">
+                                <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--text-muted); margin-top:2px;">
+                                    <span>-12</span><span>+12</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Volume -->
+                        <div class="form-group">
+                            <label>ses seviyesi — <span id="ttsVolumeVal">1.0</span></label>
+                            <input type="range" id="ttsVolume" class="tts-range" min="0" max="2.0" step="0.1" value="1.0"
+                                   oninput="syncTtsSlider(this,'ttsVolumeVal')">
+                            <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--text-muted); margin-top:2px;">
+                                <span>0</span><span>2.0</span>
+                            </div>
+                        </div>
+
+                        <button onclick="generateTts()">🔊 Seslendirmeyi Başlat</button>
+                        <div id="ttsResponse" class="response-box" style="display:none;"></div>
+                        <div id="ttsReadable" style="display:none; margin-top:1.25rem;"></div>
+                    </div>
+
+                    <!-- Music -->
+                    <div class="tab-panel" id="tab-music" style="display:none;">
+                        <div class="form-row cols-2">
+                            <div class="form-group">
+                                <label>model</label>
+                                <select id="musicModel" disabled>
+                                    <option value="" disabled selected>— Ayarları Kaydedin —</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="musicStyle">stil (style)</label>
+                                <input type="text" id="musicStyle" placeholder="Örn: rock, jazz, hip-hop...">
+                            </div>
+                        </div>
+
+                        <!-- MAIN MODE toggle -->
+                        <div class="form-group">
+                            <label>main mode</label>
+                            <div class="seg-group" id="musicInstrumentalGroup">
+                                <button class="seg-btn active" data-val="false" onclick="onMusicInstrumentalChange(this)">Vocal</button>
+                                <button class="seg-btn" data-val="true" onclick="onMusicInstrumentalChange(this)">Instrumental</button>
+                            </div>
+                        </div>
+
+                        <!-- MODE selector -->
+                        <div class="form-group">
+                            <label>mode</label>
+                            <div class="seg-group seg-group--wrap" id="musicModeGroup">
+                                <button class="seg-btn active" data-val="TEXT" onclick="onMusicModeChange(this)">Text</button>
+                                <button class="seg-btn" data-val="COVER" onclick="onMusicModeChange(this)">Cover</button>
+                                <button class="seg-btn" data-val="ADD_INSTRUMENTAL" onclick="onMusicModeChange(this)">Add Instrumental</button>
+                                <button class="seg-btn" data-val="ADD_VOCAL" onclick="onMusicModeChange(this)">Add Vocal</button>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="musicPrompt">prompt *</label>
+                            <div class="prompt-wrap">
+                                <textarea id="musicPrompt" maxlength="3000" oninput="updateCounter('musicPrompt','musicPromptCounter',3000)" placeholder="Müziği tarif edin — örn: upbeat rock anthem, melancholic piano..." style="min-height:80px;"></textarea>
+                                <span id="musicPromptCounter" class="prompt-counter">0/3000</span>
+                            </div>
+                        </div>
+
+                        <!-- Lyrics — only Vocal + Text -->
+                        <div class="form-group" id="musicLyricsGroup">
+                            <label for="musicLyrics">sözler (lyrics)</label>
+                            <div class="prompt-wrap">
+                                <textarea id="musicLyrics" maxlength="3000" oninput="updateCounter('musicLyrics','musicLyricsCounter',3000)" placeholder="Şarkı sözlerini girin (opsiyonel)..." style="min-height:80px;"></textarea>
+                                <span id="musicLyricsCounter" class="prompt-counter">0/3000</span>
+                            </div>
+                        </div>
+
+                        <!-- Audio upload — required for COVER / ADD_INSTRUMENTAL / ADD_VOCAL -->
+                        <div class="form-group" id="musicAudioGroup" style="display:none;">
+                            <label for="musicAudioFile" id="musicAudioLabel">referans ses <span style="color:var(--rose);">*</span></label>
+                            <div class="file-input-wrapper">
+                                <input type="file" id="musicAudioFile" accept="audio/mp3,audio/mpeg,.mp3" onchange="updateMusicAudioLabel(this)">
+                                <label for="musicAudioFile" class="file-input-label" id="musicAudioFileLabel">MP3 SEÇ</label>
+                            </div>
+                        </div>
+
+                        <small style="color:var(--text-muted); display:flex; align-items:center; gap:0.4rem; margin-bottom:0.75rem; font-size:0.75rem;"><span style="font-size:0.75rem; flex-shrink:0;">ℹ️</span>Her istekte 2 versiyon üretilir — task tamamlandığında her ikisi de döner.</small>
+                        <button onclick="generateMusic()">🎵 Müzik Oluştur</button>
+                        <div id="musicResponse" class="response-box" style="display:none;"></div>
+                        <div id="musicReadable" style="display:none; margin-top:1.25rem;"></div>
                     </div>
 
                 </div>
@@ -1755,15 +2046,17 @@
         /* ══════════════════════════════════════
            LOCALSTORAGE — API SETTINGS
         ══════════════════════════════════════ */
-        function saveApiSettings() {
+        async function saveApiSettings() {
             const apiKey = document.getElementById('apiKey').value.trim();
             const apiUrl = document.getElementById('apiUrl').value.trim();
             
             if (apiKey) localStorage.setItem('creativelabs_api_key', apiKey);
             if (apiUrl) localStorage.setItem('creativelabs_api_url', apiUrl);
             
+            await fetchAndPopulateModels();
             alert('✅ Ayarlar kaydedildi!');
         }
+
 
         function clearApiSettings() {
             if (confirm('API ayarlarını silmek istediğinizden emin misiniz?')) {
@@ -1783,18 +2076,144 @@
             if (savedUrl) document.getElementById('apiUrl').value = savedUrl;
         }
 
-        window.addEventListener('DOMContentLoaded', () => {
+        window.addEventListener('DOMContentLoaded', async () => {
             loadApiSettings();
-            updateCounter('imagePrompt', 'imagePromptCounter', 4000);
+            await fetchAndPopulateModels();
+            updateCounter('imagePrompt', 'imagePromptCounter', 5000);
             updateCounter('t2vPrompt', 't2vPromptCounter', 2000);
             updateCounter('i2vPrompt', 'i2vPromptCounter', 2000);
-            updateCounter('i2iPrompt', 'i2iPromptCounter', 4000);
-            onI2vModelChange();
+            updateCounter('i2iPrompt', 'i2iPromptCounter', 5000);
         });
 
-        const API_BASE = () => document.getElementById('apiUrl').value || 'https://api-pe7w.onrender.com';
+        const API_BASE = () => document.getElementById('apiUrl').value;
+        const proxied = (url) => url ? `${API_BASE()}/api/proxy?url=${encodeURIComponent(url)}` : url;
         const API_KEY = () => document.getElementById('apiKey').value;
+
+        let modelsData = null;
+
+        async function fetchAndPopulateModels() {
+            const apiKey = API_KEY();
+            const apiBase = API_BASE();
+            if (!apiKey || !apiBase) return;
+
+            try {
+                const { response, data } = await apiCall('/api/models', 'GET');
+                if (!response.ok) {
+                    console.error('Model fetch failed:', data);
+                    return;
+                }
+
+                modelsData = data;
+
+                // Toggle Tab Visibility based on availability of models
+                const t2iBtn = document.getElementById('btn-tab-t2i');
+                const i2iBtn = document.getElementById('btn-tab-i2i');
+                const t2vBtn = document.getElementById('btn-tab-t2v');
+                const i2vBtn = document.getElementById('btn-tab-i2v');
+                const ttsBtn = document.getElementById('btn-tab-tts');
+                const musicBtn = document.getElementById('btn-tab-music');
+
+                const imageAvailable = (modelsData.image || []).length > 0;
+                const videoAvailable = (modelsData.video || []).length > 0;
+                const ttsAvailable = (modelsData.tts || []).length > 0;
+                const musicAvailable = (modelsData.music || []).length > 0;
+
+                if (t2iBtn) t2iBtn.style.display = imageAvailable ? '' : 'none';
+                if (i2iBtn) i2iBtn.style.display = imageAvailable ? '' : 'none';
+                if (t2vBtn) t2vBtn.style.display = videoAvailable ? '' : 'none';
+                if (i2vBtn) i2vBtn.style.display = videoAvailable ? '' : 'none';
+                if (ttsBtn) ttsBtn.style.display = ttsAvailable ? '' : 'none';
+                if (musicBtn) musicBtn.style.display = musicAvailable ? '' : 'none';
+
+                // If currently active tab is hidden, switch to the first available tab
+                const activeTabBtn = document.querySelector('.tab-btn.active');
+                if (activeTabBtn && activeTabBtn.style.display === 'none') {
+                    const availableTabs = ['t2i', 'i2i', 't2v', 'i2v', 'tts', 'music'];
+                    for (const tab of availableTabs) {
+                        const btn = document.getElementById(`btn-tab-${tab}`);
+                        if (btn && btn.style.display !== 'none') {
+                            switchTab(`tab-${tab}`);
+                            break;
+                        }
+                    }
+                }
+
+                // Populate Image Models
+                const imageModels = modelsData.image || [];
+                const imgSelect = document.getElementById('imageModel');
+                const i2iSelect = document.getElementById('i2iModel');
+                
+                if (imgSelect) {
+                    const prevVal = imgSelect.value;
+                    imgSelect.innerHTML = imageModels.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+                    if (imageModels.some(m => m.id === prevVal)) {
+                        imgSelect.value = prevVal;
+                    }
+                    onImageModelChange();
+                }
+                if (i2iSelect) {
+                    const prevVal = i2iSelect.value;
+                    i2iSelect.innerHTML = imageModels.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+                    if (imageModels.some(m => m.id === prevVal)) {
+                        i2iSelect.value = prevVal;
+                    }
+                    onI2iModelChange();
+                }
+
+                // Populate Video Models
+                const videoModels = modelsData.video || [];
+                const t2vSelect = document.getElementById('t2vModel');
+                const i2vSelect = document.getElementById('i2vModel');
+
+                if (t2vSelect) {
+                    const prevVal = t2vSelect.value;
+                    t2vSelect.innerHTML = videoModels.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+                    if (videoModels.some(m => m.id === prevVal)) {
+                        t2vSelect.value = prevVal;
+                    }
+                    onT2vModelChange();
+                }
+                if (i2vSelect) {
+                    const prevVal = i2vSelect.value;
+                    i2vSelect.innerHTML = videoModels.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+                    if (videoModels.some(m => m.id === prevVal)) {
+                        i2vSelect.value = prevVal;
+                    }
+                    onI2vModelChange();
+                }
+
+                // Populate TTS Models
+                const ttsModels = modelsData.tts || [];
+                const ttsSelect = document.getElementById('ttsModel');
+                if (ttsSelect) {
+                    const prevVal = ttsSelect.value;
+                    ttsSelect.innerHTML = ttsModels.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+                    if (ttsModels.some(m => m.id === prevVal)) {
+                        ttsSelect.value = prevVal;
+                    }
+                }
+
+                // Populate Music Models
+                const musicModels = modelsData.music || [];
+                const musicSelect = document.getElementById('musicModel');
+                if (musicSelect) {
+                    const prevVal = musicSelect.value;
+                    musicSelect.innerHTML = musicModels.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+                    if (musicModels.some(m => m.id === prevVal)) {
+                        musicSelect.value = prevVal;
+                    }
+                    if (musicModels.length > 0) {
+                        musicSelect.removeAttribute('disabled');
+                    }
+                }
+
+            } catch (err) {
+                console.error('Error fetching models:', err);
+            }
+        }
+
         let autoRefreshInterval = null;
+        let currentViewMode = 'all'; // 'all' veya 'single'
         
         // Pagination variables
         let allTasks = [];
@@ -1955,6 +2374,7 @@
         
         function quickQueryTask(taskId) {
             document.getElementById('taskId').value = taskId;
+            currentViewMode = 'single';
             showPage('page-tasks', document.getElementById('nav-tasks'));
             checkTaskStatus();
         }
@@ -1991,10 +2411,11 @@
                 size: document.getElementById('imageSize').value
             };
 
-            // NANO_PRO / NANO_2 için resolution ekle
-            if (body.model === 'NANO_BANANA_PRO' || body.model === 'NANO_BANANA_2') {
+            const modelMeta = modelsData?.image?.find(m => m.id === body.model);
+            if (modelMeta && modelMeta.supported_resolutions && modelMeta.supported_resolutions.length > 0) {
                 body.resolution = document.getElementById('imageResolution').value;
             }
+
 
             // Image-to-Image için base64 dönüşümü
             const fileInput = document.getElementById('imageFile');
@@ -2020,38 +2441,173 @@
         }
 
         function onI2vModelChange() {
-            const model = document.getElementById('i2vModel').value;
-            const isVeo = model === 'VEO_3';
+            const modelId = document.getElementById('i2vModel').value;
+            const model = modelsData?.video?.find(m => m.id === modelId);
+            if (!model) return;
 
-            // Sub-tab nav: sadece VEO_3'te göster
-            document.getElementById('i2vSubTabNav').style.display = isVeo ? 'flex' : 'none';
+            const helpEl = document.getElementById('i2vModelHelp');
+            if (helpEl && model.description) {
+                helpEl.innerHTML = `<span style="font-size:0.75rem; flex-shrink:0;">ℹ️</span> ${model.description}`;
+            }
 
-            // End Frame: sadece VEO_3'te göster
-            document.getElementById('i2vEndFrameGroup').style.display = isVeo ? 'block' : 'none';
 
-            // End Frame label: VEO_3'te isteğe bağlı olduğunu belirt
+            const isVeo = model.id === 'VEO_3';
+            const isKling = model.id === 'SEEDANCE_2_0';
+
+            // Size selector
+            const sizeSelect = document.getElementById('i2vSize');
+            if (sizeSelect && model.supported_sizes) {
+                sizeSelect.innerHTML = model.supported_sizes.map(s => `<option value="${s}">${s}</option>`).join('');
+                sizeSelect.disabled = model.supported_sizes.length === 1 && model.supported_sizes[0] === 'AUTO';
+                sizeSelect.value = model.default_size || model.supported_sizes[0];
+            }
+
+            // Sub-tab nav: VEO_3 ve SEEDANCE_2_0'de göster (model supports character references)
+            const supportsRef = model.supports_reference_images;
+            document.getElementById('i2vSubTabNav').style.display = supportsRef ? 'flex' : 'none';
+
+            // End Frame: VEO_3 ve SEEDANCE_2_0'de göster
+            const supportsEndFrame = model.supports_end_frame;
+            document.getElementById('i2vEndFrameGroup').style.display = supportsEndFrame ? 'block' : 'none';
+
+            // End Frame label
             const endFrameLabel = document.getElementById('i2vEndFrameLabel');
-            if (endFrameLabel) {
-                endFrameLabel.textContent = isVeo ? 'End Frame' : 'End Frame *';
-            }
+            if (endFrameLabel) endFrameLabel.textContent = supportsEndFrame ? 'End Frame' : 'End Frame *';
 
-            // Reference Images label: VEO_3'te zorunlu olduğunu belirt
+            // Reference Images label
             const refImagesLabel = document.getElementById('i2vRefImagesFormLabel');
-            if (refImagesLabel) {
-                refImagesLabel.textContent = isVeo ? 'REFERENCE IMAGES *' : 'REFERENCE IMAGES';
-            }
+            if (refImagesLabel) refImagesLabel.textContent = supportsRef ? 'REFERENCE IMAGES *' : 'REFERENCE IMAGES';
 
-            // Reference Images paneli: sadece VEO_3'te erişilebilir
+            // Reference Images paneli: reset
             document.getElementById('subtab-refimages').style.display = 'none';
-
-            // Start Frame panelini her zaman aktif yap
             document.getElementById('subtab-startend').style.display = 'block';
 
             // Sub-tab butonlarını sıfırla
             document.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.remove('active'));
             const firstSubBtn = document.querySelector('.sub-tab-btn');
             if (firstSubBtn) firstSubBtn.classList.add('active');
+
+            // Resolution select + Duration select
+            const resSelect = document.getElementById('i2vResolution');
+            const durSelect = document.getElementById('i2vDurationSelect');
+            const durInput  = document.getElementById('i2vDuration');
+
+            // Dynamic resolutions
+            if (resSelect) {
+                if (model.supported_resolutions) {
+                    resSelect.innerHTML = model.supported_resolutions.map(r => `<option value="${r}">${r}</option>`).join('');
+                    resSelect.disabled = model.supported_resolutions.length <= 1;
+                    resSelect.value = model.default_resolution || model.supported_resolutions[0];
+                } else if (model.resolution) {
+                    resSelect.innerHTML = `<option value="${model.resolution}">${model.resolution}</option>`;
+                    resSelect.disabled = true;
+                    resSelect.value = model.resolution;
+                }
+            }
+
+            // Dynamic durations
+            if (durSelect && durInput) {
+                if (model.supported_durations) {
+                    durSelect.innerHTML = model.supported_durations.map(d => `<option value="${d}">${d} saniye</option>`).join('');
+                    durSelect.disabled = model.supported_durations.length <= 1;
+                    durSelect.value = model.default_duration || model.supported_durations[0];
+                    durInput.value = durSelect.value;
+                } else if (model.duration) {
+                    durSelect.innerHTML = `<option value="${model.duration}">${model.duration} saniye</option>`;
+                    durSelect.disabled = true;
+                    durInput.value = model.duration;
+                }
+            }
+
+            // Trigger resolution change handler to handle constraints
+            onI2vResolutionChange();
         }
+
+        function onI2vResolutionChange() {
+            const modelId = document.getElementById('i2vModel').value;
+            const model = modelsData?.video?.find(m => m.id === modelId);
+            if (!model) return;
+
+            const res = document.getElementById('i2vResolution').value;
+            const durSelect = document.getElementById('i2vDurationSelect');
+            const durInput = document.getElementById('i2vDuration');
+
+            if (!durSelect || !durInput) return;
+
+            // Handle constraints
+            if (model.constraints) {
+                const constraint = model.constraints.find(c => c.if && c.if.resolution === res);
+                if (constraint && constraint.then && constraint.then.duration) {
+                    durSelect.innerHTML = constraint.then.duration.map(d => `<option value="${d}">${d} saniye</option>`).join('');
+                    durSelect.disabled = constraint.then.duration.length <= 1;
+                    durSelect.value = constraint.then.duration[0];
+                    durInput.value = durSelect.value;
+                    return;
+                }
+            }
+
+            if (model.supported_durations) {
+                durSelect.innerHTML = model.supported_durations.map(d => `<option value="${d}">${d} saniye</option>`).join('');
+                durSelect.disabled = model.supported_durations.length <= 1;
+                durSelect.value = model.default_duration || model.supported_durations[0];
+                durInput.value = durSelect.value;
+            }
+        }
+
+        function onI2vDurationChange() {
+            document.getElementById('i2vDuration').value = document.getElementById('i2vDurationSelect').value;
+        }
+
+        function onT2vModelChange() {
+            const modelId = document.getElementById('t2vModel').value;
+            const model = modelsData?.video?.find(m => m.id === modelId);
+            if (!model) return;
+
+            const helpEl = document.getElementById('t2vModelHelp');
+            if (helpEl && model.description) {
+                helpEl.innerHTML = `<span style="font-size:0.75rem; flex-shrink:0;">ℹ️</span> ${model.description}`;
+            }
+
+            const durSelect = document.getElementById('t2vDurationDisplay');
+            const resSelect = document.getElementById('t2vResolutionDisplay');
+            const sizeSelect = document.getElementById('t2vSize');
+
+            if (durSelect) {
+                if (model.supported_durations) {
+                    durSelect.innerHTML = model.supported_durations.map(d => `<option value="${d}">${d} saniye</option>`).join('');
+                    durSelect.disabled = model.supported_durations.length <= 1;
+                    durSelect.value = model.default_duration || model.supported_durations[0];
+                } else if (model.duration) {
+                    durSelect.innerHTML = `<option value="${model.duration}">${model.duration} saniye</option>`;
+                    durSelect.disabled = true;
+                    durSelect.value = model.duration;
+                }
+            }
+
+            if (resSelect) {
+                if (model.supported_resolutions) {
+                    resSelect.innerHTML = model.supported_resolutions.map(r => `<option value="${r}">${r}</option>`).join('');
+                    resSelect.disabled = model.supported_resolutions.length <= 1;
+                    resSelect.value = model.default_resolution || model.supported_resolutions[0];
+                } else if (model.resolution) {
+                    resSelect.innerHTML = `<option value="${model.resolution}">${model.resolution}</option>`;
+                    resSelect.disabled = true;
+                    resSelect.value = model.resolution;
+                }
+            }
+
+            if (sizeSelect && model.supported_sizes) {
+                const prevVal = sizeSelect.value;
+                sizeSelect.innerHTML = model.supported_sizes.map(s => `<option value="${s}">${s}</option>`).join('');
+                if (model.supported_sizes.includes(prevVal)) {
+                    sizeSelect.value = prevVal;
+                } else {
+                    sizeSelect.value = model.default_size || model.supported_sizes[0];
+                }
+            }
+        }
+
+
 
         function onI2iRefChange(input) {
             if (input.files && input.files.length > 5) {
@@ -2065,10 +2621,50 @@
         }
 
         function onI2iModelChange() {
-            const model = document.getElementById('i2iModel').value;
-            document.getElementById('i2iResolutionGroup').style.display =
-                (model === 'NANO_BANANA_PRO' || model === 'NANO_BANANA_2') ? 'block' : 'none';
+            const modelId = document.getElementById('i2iModel').value;
+            const model = modelsData?.image?.find(m => m.id === modelId);
+            if (!model) return;
+
+            const helpEl = document.getElementById('i2iModelHelp');
+            if (helpEl && model.description) {
+                helpEl.innerHTML = `<span style="font-size:0.75rem; flex-shrink:0;">ℹ️</span> ${model.description}`;
+            }
+
+            const resGroup = document.getElementById('i2iResolutionGroup');
+            const hasResolution = model.supported_resolutions && model.supported_resolutions.length > 0;
+            if (resGroup) {
+                resGroup.style.display = hasResolution ? 'block' : 'none';
+                if (hasResolution) {
+                    const resSelect = document.getElementById('i2iResolution');
+                    const prevVal = resSelect.value;
+                    resSelect.innerHTML = model.supported_resolutions.map(r => `<option value="${r}">${r}</option>`).join('');
+                    if (model.supported_resolutions.includes(prevVal)) {
+                        resSelect.value = prevVal;
+                    } else if (model.default_resolution) {
+                        resSelect.value = model.default_resolution;
+                    }
+                }
+            }
+
+            const sizeSelect = document.getElementById('i2iSize');
+            if (sizeSelect && model.supported_sizes) {
+                const prevVal = sizeSelect.value;
+                sizeSelect.innerHTML = model.supported_sizes.map(s => `<option value="${s}">${s}</option>`).join('');
+                if (model.supported_sizes.includes(prevVal)) {
+                    sizeSelect.value = prevVal;
+                } else {
+                    sizeSelect.value = model.default_size || model.supported_sizes[0];
+                }
+            }
+
+            const promptInput = document.getElementById('i2iPrompt');
+            if (promptInput && model.max_prompt_length) {
+                promptInput.setAttribute('maxlength', model.max_prompt_length);
+                updateCounter('i2iPrompt', 'i2iPromptCounter', model.max_prompt_length);
+            }
         }
+
+
 
         async function generateImageToImage() {
             const prompt = document.getElementById('i2iPrompt').value;
@@ -2086,9 +2682,11 @@
                 size: document.getElementById('i2iSize').value
             };
 
-            if (body.model === 'NANO_BANANA_PRO' || body.model === 'NANO_BANANA_2') {
+            const modelMeta = modelsData?.image?.find(m => m.id === body.model);
+            if (modelMeta && modelMeta.supported_resolutions && modelMeta.supported_resolutions.length > 0) {
                 body.resolution = document.getElementById('i2iResolution').value;
             }
+
 
             if (refInput.files && refInput.files.length > 0) {
                 const images = [];
@@ -2108,10 +2706,50 @@
         }
 
         function onImageModelChange() {
-            const model = document.getElementById('imageModel').value;
-            document.getElementById('imageResolutionGroup').style.display = 
-                model === 'NANO_BANANA_PRO' || model === 'NANO_BANANA_2' ? 'block' : 'none';
+            const modelId = document.getElementById('imageModel').value;
+            const model = modelsData?.image?.find(m => m.id === modelId);
+            if (!model) return;
+
+            const helpEl = document.getElementById('imageModelHelp');
+            if (helpEl && model.description) {
+                helpEl.innerHTML = `<span style="font-size:0.75rem; flex-shrink:0;">ℹ️</span> ${model.description}`;
+            }
+
+            const resGroup = document.getElementById('imageResolutionGroup');
+            const hasResolution = model.supported_resolutions && model.supported_resolutions.length > 0;
+            if (resGroup) {
+                resGroup.style.display = hasResolution ? 'block' : 'none';
+                if (hasResolution) {
+                    const resSelect = document.getElementById('imageResolution');
+                    const prevVal = resSelect.value;
+                    resSelect.innerHTML = model.supported_resolutions.map(r => `<option value="${r}">${r}</option>`).join('');
+                    if (model.supported_resolutions.includes(prevVal)) {
+                        resSelect.value = prevVal;
+                    } else if (model.default_resolution) {
+                        resSelect.value = model.default_resolution;
+                    }
+                }
+            }
+
+            const sizeSelect = document.getElementById('imageSize');
+            if (sizeSelect && model.supported_sizes) {
+                const prevVal = sizeSelect.value;
+                sizeSelect.innerHTML = model.supported_sizes.map(s => `<option value="${s}">${s}</option>`).join('');
+                if (model.supported_sizes.includes(prevVal)) {
+                    sizeSelect.value = prevVal;
+                } else {
+                    sizeSelect.value = model.default_size || model.supported_sizes[0];
+                }
+            }
+
+            const promptInput = document.getElementById('imagePrompt');
+            if (promptInput && model.max_prompt_length) {
+                promptInput.setAttribute('maxlength', model.max_prompt_length);
+                updateCounter('imagePrompt', 'imagePromptCounter', model.max_prompt_length);
+            }
         }
+
+
 
         function updateCounter(textareaId, counterId, max) {
             const len = document.getElementById(textareaId).value.length;
@@ -2124,8 +2762,26 @@
         function switchTab(id) {
             document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(id).style.display = 'block';
-            event.currentTarget.classList.add('active');
+            
+            const targetPanel = document.getElementById(id);
+            if (targetPanel) targetPanel.style.display = 'block';
+            
+            const btnId = 'btn-' + id;
+            const targetBtn = document.getElementById(btnId);
+            if (targetBtn) {
+                targetBtn.classList.add('active');
+            } else if (window.event && window.event.currentTarget) {
+                window.event.currentTarget.classList.add('active');
+            }
+
+            if (id === 'tab-tts') {
+                initTtsEmotions();
+                updateCounter('ttsText', 'ttsTextCounter', 6000);
+            }
+            if (id === 'tab-music') {
+                updateCounter('musicPrompt', 'musicPromptCounter', 3000);
+                updateCounter('musicLyrics', 'musicLyricsCounter', 3000);
+            }
         }
 
         function switchSubTab(id) {
@@ -2143,7 +2799,9 @@
             const body = {
                 prompt,
                 model: document.getElementById('t2vModel').value,
-                size: document.getElementById('t2vSize').value
+                size: document.getElementById('t2vSize').value,
+                resolution: document.getElementById('t2vResolutionDisplay').value,
+                duration: parseInt(document.getElementById('t2vDurationDisplay').value)
             };
 
             try {
@@ -2163,8 +2821,18 @@
             const body = {
                 prompt,
                 model: document.getElementById('i2vModel').value,
-                size: document.getElementById('i2vSize').value
             };
+
+            const modelMeta = modelsData?.video?.find(m => m.id === body.model);
+            if (modelMeta && modelMeta.supported_sizes && modelMeta.supported_sizes.length === 1 && (modelMeta.supported_sizes[0] === 'AUTO' || modelMeta.supported_sizes[0] === 'Auto')) {
+                body.size = modelMeta.supported_sizes[0];
+            } else {
+                body.size = document.getElementById('i2vSize').value;
+            }
+
+            // Her model için resolution ve duration her zaman gönderilir
+            body.duration = parseInt(document.getElementById('i2vDuration').value) || 5;
+            body.resolution = document.getElementById('i2vResolution').value;
 
             // Determine active sub-tab
             const startEndActive = document.getElementById('subtab-startend').style.display !== 'none';
@@ -2178,11 +2846,15 @@
 
                 const endInput = document.getElementById('i2vEndFrame');
                 if (endInput.files && endInput.files.length > 0) {
-                    if (body.model !== 'VEO_3') { alert('End Frame yalnızca VEO_3 modeliyle kullanılabilir!'); return; }
-                    body.end_frame = await fileToBase64(endInput.files[0]);
+                    if (modelMeta && modelMeta.supports_end_frame) {
+                        body.end_frame = await fileToBase64(endInput.files[0]);
+                    }
                 }
             } else {
-                if (body.model !== 'VEO_3') { alert('Reference Images yalnızca VEO_3 modeliyle kullanılabilir!'); return; }
+                if (!modelMeta || !modelMeta.supports_reference_images) { 
+                    alert('Reference Images bu model ile kullanılamaz!'); 
+                    return; 
+                }
                 const refInput = document.getElementById('i2vRefImages');
                 if (!refInput.files || refInput.files.length === 0) {
                     alert('Lütfen en az 1 referans görsel seçin!'); return;
@@ -2273,6 +2945,7 @@
                 alert('Lütfen Task ID girin!');
                 return;
             }
+            currentViewMode = 'single';
 
             try {
                 const { response, data } = await apiCall(`/api/status/${taskId}`);
@@ -2294,6 +2967,7 @@
 
         // Check All Tasks
         async function checkAllTasks() {
+            currentViewMode = 'all';
             try {
                 const { response, data } = await apiCall(`/api/status?page=${currentPage}&per_page=${tasksPerPage}`);
                 const showJson = document.getElementById('settingShowJson')?.checked ?? true;
@@ -2328,23 +3002,31 @@
             paginationContainer.innerHTML = '';
             
             let resultHTML = '';
-            if (taskData.result_url) {
+            let parsedTracks = [];
+            if (taskData.mode === 'music') {
+                if (taskData.result_url) {
+                    try { parsedTracks = JSON.parse(taskData.result_url); } catch(e) {}
+                }
+                resultHTML = renderMusicTracks(parsedTracks);
+            } else if (taskData.result_url) {
                 if (taskData.mode === 'image') {
-                    resultHTML = `<img src="${taskData.result_url}" class="result-image" alt="Result">`;
+                    resultHTML = `<img src="${proxied(taskData.result_url)}" class="result-image" alt="Result">`;
                 } else if (taskData.mode === 'video') {
-                    resultHTML = `<video src="${taskData.result_url}" class="result-video" controls></video>`;
+                    resultHTML = `<video src="${proxied(taskData.result_url)}" class="result-video" controls></video>`;
+                } else if (taskData.mode === 'tts') {
+                    resultHTML = `<audio src="${proxied(taskData.result_url)}" controls style="width:100%; margin-top:1rem; border-radius:var(--radius-sm);"></audio>`;
                 }
             }
 
             const refImagesHTML = taskData.reference_image_urls && taskData.reference_image_urls.length > 0
                 ? `<div class="task-info-item" style="grid-column:1/-1"><strong>Referans Görseller:</strong><br>${taskData.reference_image_urls.map(url =>
-                    `<a href="${url}" target="_blank"><img src="${url}" style="height:60px;border-radius:6px;margin:4px;object-fit:cover;"></a>`
+                    `<a href="${proxied(url)}" target="_blank"><img src="${proxied(url)}" style="height:60px;border-radius:6px;margin:4px;object-fit:cover;"></a>`
                 ).join('')}</div>`
                 : '';
 
             const frameImagesHTML = [
-                taskData.start_frame_url ? `<a href="${taskData.start_frame_url}" target="_blank"><img src="${taskData.start_frame_url}" style="height:60px;border-radius:6px;margin:4px;object-fit:cover;" title="Start Frame"></a>` : '',
-                taskData.end_frame_url   ? `<a href="${taskData.end_frame_url}"   target="_blank"><img src="${taskData.end_frame_url}"   style="height:60px;border-radius:6px;margin:4px;object-fit:cover;" title="End Frame"></a>`   : ''
+                taskData.start_frame_url ? `<a href="${proxied(taskData.start_frame_url)}" target="_blank"><img src="${proxied(taskData.start_frame_url)}" style="height:60px;border-radius:6px;margin:4px;object-fit:cover;" title="Start Frame"></a>` : '',
+                taskData.end_frame_url   ? `<a href="${proxied(taskData.end_frame_url)}"   target="_blank"><img src="${proxied(taskData.end_frame_url)}"   style="height:60px;border-radius:6px;margin:4px;object-fit:cover;" title="End Frame"></a>`   : ''
             ].filter(Boolean).join('');
             const frameHTML = frameImagesHTML
                 ? `<div class="task-info-item" style="grid-column:1/-1"><strong>${taskData.start_frame_url && taskData.end_frame_url ? 'Start / End Frame:' : taskData.start_frame_url ? 'Start Frame:' : 'End Frame:'}</strong><br>${frameImagesHTML}</div>`
@@ -2353,12 +3035,40 @@
             // Meta items — flex row, equal width, wraps on mobile
             const metaItems = [
                 { label: 'Mod',        val: taskData.mode },
-                taskData.result_url  ? { label: 'Sonuç URL', val: `<a href="${taskData.result_url}" target="_blank" style="color:var(--cyan);text-decoration:none;">Aç</a>` } : null,
-                taskData.model       ? { label: 'Model',      val: taskData.model }      : null,
-                taskData.resolution  ? { label: 'Resolution', val: taskData.resolution } : null,
-                taskData.size        ? { label: 'Size',        val: taskData.size }       : null,
-                taskData.duration    ? { label: 'Duration',    val: taskData.duration }   : null,
-            ].filter(Boolean).map(item => `
+            ];
+
+            // Music: Sonuç URL kutuları (her track için ayrı)
+            if (taskData.mode === 'music' && parsedTracks.length > 0) {
+                parsedTracks.forEach((t, i) => {
+                    metaItems.push({ label: `Sonuç URL ${i+1}`, val: `<a href="${proxied(t.musicUrl)}" target="_blank" style="color:var(--cyan);text-decoration:none;">Aç</a>` });
+                });
+            } else if (taskData.result_url && taskData.mode !== 'music') {
+                metaItems.push({ label: 'Sonuç URL', val: `<a href="${proxied(taskData.result_url)}" target="_blank" style="color:var(--cyan);text-decoration:none;">Aç</a>` });
+            }
+
+            // Ortak alanlar
+            if (taskData.model)      metaItems.push({ label: 'Model',      val: taskData.model });
+            if (taskData.resolution) metaItems.push({ label: 'Resolution', val: taskData.resolution });
+            if (taskData.size)       metaItems.push({ label: 'Size',       val: taskData.size });
+            if (taskData.duration)   metaItems.push({ label: 'Duration',   val: taskData.duration });
+
+            // Music'e özgü alanlar
+            if (taskData.mode === 'music') {
+                metaItems.push({ label: 'Main Mode', val: taskData.instrumental ? 'Instrumental' : 'Vocal' });
+                if (taskData.audio_usage) metaItems.push({ label: 'Mode', val: taskData.audio_usage });
+                if (taskData.style)       metaItems.push({ label: 'Style', val: taskData.style });
+            }
+
+            // TTS'e özgü alanlar
+            if (taskData.mode === 'tts') {
+                if (taskData.voice_id) metaItems.push({ label: 'Voice',   val: taskData.voice_id });
+                if (taskData.speed != null)    metaItems.push({ label: 'Speed',   val: taskData.speed });
+                if (taskData.pitch != null)    metaItems.push({ label: 'Pitch',   val: taskData.pitch });
+                if (taskData.volume != null)   metaItems.push({ label: 'Volume',  val: taskData.volume });
+                if (taskData.emotion)  metaItems.push({ label: 'Emotion', val: taskData.emotion });
+            }
+
+            const metaHTML = metaItems.map(item => `
                 <div class="task-meta-item" style="background:var(--panel); border:1px solid transparent; border-radius:var(--radius-sm); padding:0.625rem 0.875rem;">
                     <strong style="color:var(--violet);font-family:'JetBrains Mono',monospace;font-size:0.68rem;text-transform:uppercase;display:block;margin-bottom:2px;">${item.label}:</strong>
                     <span style="font-size:0.82rem;color:var(--text-dim);">${item.val}</span>
@@ -2391,17 +3101,51 @@
                     </div>
                 </div>` : '';
 
+            // Music lyrics — tam genişlik kutu (prompt gibi, kopyalama butonlu)
+            const lyricsHTML = (taskData.mode === 'music' && taskData.lyrics) ? `
+                <div style="background:var(--panel); border:1px solid transparent; border-radius:var(--radius-sm); padding:0.625rem 0.875rem; margin-top:0.625rem;">
+                    <strong style="color:var(--violet);font-family:'JetBrains Mono',monospace;font-size:0.68rem;text-transform:uppercase;display:block;margin-bottom:6px;">Lyrics:</strong>
+                    <div style="display:flex;align-items:flex-start;gap:8px;">
+                        <div id="lyricsTextDisplay" style="
+                            flex:1; overflow-x:auto; white-space:pre-wrap; word-break:break-word;
+                            background:var(--input-bg); border:1px solid var(--border);
+                            border-radius:8px; padding:8px 12px;
+                            font-family:'JetBrains Mono',monospace; font-size:0.8rem;
+                            color:var(--text-dim); line-height:1.5; max-height:120px; overflow-y:auto;
+                            scrollbar-width:thin; scrollbar-color:rgba(139,92,246,0.4) transparent;
+                        "></div>
+                        <button id="lyricsCopyBtn" style="
+                            flex-shrink:0; width:34px; height:34px;
+                            display:flex; align-items:center; justify-content:center;
+                            font-size:0.85rem;
+                            background:var(--violet-dim); border:1px solid var(--border-bright);
+                            color:var(--violet); border-radius:8px;
+                            cursor:pointer; box-shadow:none; transform:none;
+                            transition:background 0.2s, border-color 0.2s, color 0.2s;
+                        ">📋</button>
+                    </div>
+                </div>` : '';
+
+            // Referans audio — music task'larında referans audio player göster
+            const referenceAudioHTML = taskData.reference_audio_url ? `
+                <div class="task-info-item" style="grid-column:1/-1">
+                    <strong>Referans Audio:</strong>
+                    <audio src="${proxied(taskData.reference_audio_url)}" controls style="width:100%;margin-top:6px;height:36px;"></audio>
+                </div>` : '';
+
             container.innerHTML = `
                 <div class="task-card">
                     <h3>Task: ${taskId}</h3>
                     <span class="status-badge ${statusClass}">${taskData.status.toUpperCase()}</span>
                     <div class="task-meta-row">
-                        ${metaItems}
+                        ${metaHTML}
                     </div>
                     ${promptHTML}
+                    ${lyricsHTML}
                     <div style="margin-top:0.625rem;">
                         ${frameHTML}
                         ${refImagesHTML}
+                        ${referenceAudioHTML}
                     </div>
                     ${resultHTML}
                 </div>
@@ -2423,6 +3167,27 @@
                             promptCopyBtn.style.background = 'var(--violet-dim)';
                             promptCopyBtn.style.borderColor = 'var(--border-bright)';
                             promptCopyBtn.style.color = 'var(--violet)';
+                        }, 1500);
+                    });
+                };
+            }
+
+            // Set lyrics text & wire lyrics copy button after render
+            const lyricsTextEl = document.getElementById('lyricsTextDisplay');
+            const lyricsCopyBtn = document.getElementById('lyricsCopyBtn');
+            if (lyricsTextEl) lyricsTextEl.textContent = taskData.lyrics;
+            if (lyricsCopyBtn) {
+                lyricsCopyBtn.onclick = () => {
+                    navigator.clipboard.writeText(taskData.lyrics).then(() => {
+                        lyricsCopyBtn.textContent = '✓';
+                        lyricsCopyBtn.style.background = 'rgba(16,185,129,0.2)';
+                        lyricsCopyBtn.style.borderColor = 'rgba(16,185,129,0.6)';
+                        lyricsCopyBtn.style.color = 'var(--emerald)';
+                        setTimeout(() => {
+                            lyricsCopyBtn.textContent = '📋';
+                            lyricsCopyBtn.style.background = 'var(--violet-dim)';
+                            lyricsCopyBtn.style.borderColor = 'var(--border-bright)';
+                            lyricsCopyBtn.style.color = 'var(--violet)';
                         }, 1500);
                     });
                 };
@@ -2463,23 +3228,34 @@
                 let resultHTML = '';
                 if (taskData.result_url) {
                     if (taskData.mode === 'image') {
-                        resultHTML = `<img src="${taskData.result_url}" class="result-image" alt="Result">`;
+                        resultHTML = `<img src="${proxied(taskData.result_url)}" class="result-image" alt="Result">`;
                     } else if (taskData.mode === 'video') {
-                        resultHTML = `<video src="${taskData.result_url}" class="result-video" controls></video>`;
+                        resultHTML = `<video src="${proxied(taskData.result_url)}" class="result-video" controls></video>`;
+                    } else if (taskData.mode === 'tts') {
+                        resultHTML = `<audio src="${proxied(taskData.result_url)}" controls style="width:100%; margin-top:1rem; border-radius:var(--radius-sm);"></audio>`;
                     }
+                }
+
+                if (taskData.mode === 'music') {
+                    let tracks = [];
+                    if (taskData.result_url) {
+                        try { tracks = JSON.parse(taskData.result_url); } catch(e) {}
+                    }
+                    taskData._parsedTracks = tracks;
+                    resultHTML = renderMusicTracks(tracks);
                 }
 
                 const logsHTML = ''; // Loglar kaldırıldı (madde 3)
 
                 const refImagesHTML = taskData.reference_image_urls && taskData.reference_image_urls.length > 0
                     ? `<div class="task-info-item" style="grid-column:1/-1"><strong>Referans Görseller:</strong><br>${taskData.reference_image_urls.map(url =>
-                        `<a href="${url}" target="_blank"><img src="${url}" style="height:60px;border-radius:6px;margin:4px;object-fit:cover;"></a>`
+                        `<a href="${proxied(url)}" target="_blank"><img src="${proxied(url)}" style="height:60px;border-radius:6px;margin:4px;object-fit:cover;"></a>`
                     ).join('')}</div>`
                     : '';
 
                 const frameImagesHTML2 = [
-                    taskData.start_frame_url ? `<a href="${taskData.start_frame_url}" target="_blank"><img src="${taskData.start_frame_url}" style="height:60px;border-radius:6px;margin:4px;object-fit:cover;" title="Start Frame"></a>` : '',
-                    taskData.end_frame_url   ? `<a href="${taskData.end_frame_url}"   target="_blank"><img src="${taskData.end_frame_url}"   style="height:60px;border-radius:6px;margin:4px;object-fit:cover;" title="End Frame"></a>`   : ''
+                    taskData.start_frame_url ? `<a href="${proxied(taskData.start_frame_url)}" target="_blank"><img src="${proxied(taskData.start_frame_url)}" style="height:60px;border-radius:6px;margin:4px;object-fit:cover;" title="Start Frame"></a>` : '',
+                    taskData.end_frame_url   ? `<a href="${proxied(taskData.end_frame_url)}"   target="_blank"><img src="${proxied(taskData.end_frame_url)}"   style="height:60px;border-radius:6px;margin:4px;object-fit:cover;" title="End Frame"></a>`   : ''
                 ].filter(Boolean).join('');
                 const frameHTML2 = frameImagesHTML2
                     ? `<div class="task-info-item" style="grid-column:1/-1"><strong>${taskData.start_frame_url && taskData.end_frame_url ? 'Start / End Frame:' : taskData.start_frame_url ? 'Start Frame:' : 'End Frame:'}</strong><br>${frameImagesHTML2}</div>`
@@ -2487,6 +3263,24 @@
 
                 const card = document.createElement('div');
                 card.className = 'task-card';
+
+                // Build music Sonuç URL kutuları
+                let musicUrlItems = '';
+                if (taskData.mode === 'music' && taskData._parsedTracks && taskData._parsedTracks.length > 0) {
+                    musicUrlItems = taskData._parsedTracks.map((t, i) => `
+                        <div class="task-info-item">
+                            <strong>Sonuç URL ${i+1}:</strong> <a href="${proxied(t.musicUrl)}" target="_blank">Aç</a>
+                        </div>
+                    `).join('');
+                }
+
+                // Referans audio kutusu
+                const refAudioItem = taskData.reference_audio_url ? `
+                    <div class="task-info-item" style="grid-column:1/-1">
+                        <strong>Referans Audio:</strong>
+                        <audio src="${proxied(taskData.reference_audio_url)}" controls style="width:100%;margin-top:6px;height:36px;"></audio>
+                    </div>` : '';
+
                 card.innerHTML = `
                     <h3 style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
                         <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Task: ${taskId}</span>
@@ -2497,12 +3291,14 @@
                         <div class="task-info-item">
                             <strong>Mod:</strong> ${taskData.mode}
                         </div>
-                        ${taskData.result_url ? `
+                        ${taskData.mode !== 'music' && taskData.result_url ? `
                         <div class="task-info-item">
-                            <strong>Sonuç URL:</strong> <a href="${taskData.result_url}" target="_blank">Aç</a>
+                            <strong>Sonuç URL:</strong> <a href="${proxied(taskData.result_url)}" target="_blank">Aç</a>
                         </div>` : ''}
+                        ${musicUrlItems}
                         ${frameHTML2}
                         ${refImagesHTML}
+                        ${refAudioItem}
                     </div>
                     ${logsHTML}
                     ${resultHTML}
@@ -2611,11 +3407,20 @@
             }
             
             autoRefreshInterval = setInterval(() => {
-                checkAllTasks();
+                if (currentViewMode === 'single' && document.getElementById('taskId').value) {
+                    checkTaskStatus();
+                } else {
+                    checkAllTasks();
+                }
             }, 5000);
             
             alert('Otomatik yenileme başlatıldı! (5 saniyede bir)');
-            checkAllTasks(); // İlk kontrolü hemen yap
+            // İlk kontrolü hemen yap
+            if (currentViewMode === 'single' && document.getElementById('taskId').value) {
+                checkTaskStatus();
+            } else {
+                checkAllTasks();
+            }
         }
 
         function stopAutoRefresh() {
@@ -2654,6 +3459,212 @@
             } else {
                 label.textContent = labelId === 'imageFileLabel' ? 'RESİM SEÇ (MAKS. 5)' : 'RESİM SEÇ';
                 label.classList.remove('file-selected');
+            }
+        }
+
+        /* ══════════════════════════════════════
+           MUSIC
+        ══════════════════════════════════════ */
+
+        // Returns current instrumental value (true/false)
+        function getMusicInstrumental() {
+            const active = document.querySelector('#musicInstrumentalGroup .seg-btn.active');
+            return active ? active.dataset.val === 'true' : false;
+        }
+
+        // Returns current audioUsage value
+        function getMusicMode() {
+            const active = document.querySelector('#musicModeGroup .seg-btn.active');
+            return active ? active.dataset.val : 'TEXT';
+        }
+
+        // Modes that require audio upload
+        const AUDIO_REQUIRED_MODES = ['COVER', 'ADD_INSTRUMENTAL', 'ADD_VOCAL'];
+
+        function onMusicInstrumentalChange(btn) {
+            document.querySelectorAll('#musicInstrumentalGroup .seg-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            updateMusicVisibility();
+        }
+
+        function onMusicModeChange(btn) {
+            document.querySelectorAll('#musicModeGroup .seg-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            updateMusicVisibility();
+        }
+
+        function updateMusicVisibility() {
+            const mode = getMusicMode();
+            // MP3 upload: sadece COVER, ADD_INSTRUMENTAL, ADD_VOCAL modlarında gerekli
+            // Vocal ya da Instrumental fark etmez — mod belirler
+            const audioRequired = AUDIO_REQUIRED_MODES.includes(mode);
+
+            // Lyrics: her zaman görünür
+            const lyricsGroup = document.getElementById('musicLyricsGroup');
+            if (lyricsGroup) lyricsGroup.style.display = '';
+
+            // MP3 upload alanı: TEXT modunda gizli, diğer 3 modda (6 kombinasyon) her zaman açık
+            const audioGroup = document.getElementById('musicAudioGroup');
+            if (audioGroup) audioGroup.style.display = audioRequired ? '' : 'none';
+        }
+
+        function updateMusicAudioLabel(input) {
+            const label = document.getElementById('musicAudioFileLabel');
+            if (input.files && input.files.length > 0) {
+                label.textContent = input.files[0].name;
+                label.classList.add('file-selected');
+            } else {
+                label.textContent = 'MP3 SEÇ';
+                label.classList.remove('file-selected');
+            }
+        }
+
+        function audioFileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function renderMusicTracks(tracks) {
+            if (!tracks || tracks.length === 0) return '';
+            return tracks.map((t, i) => `
+                <div style="
+                    display:flex; align-items:center; gap:12px;
+                    background:var(--panel); border:1px solid var(--border);
+                    border-radius:var(--radius-sm); padding:10px 14px; margin-top:10px;
+                ">
+                    ${t.coverImageUrl ? `<img src="${proxied(t.coverImageUrl)}" style="width:52px;height:52px;border-radius:8px;object-fit:cover;flex-shrink:0;">` : ''}
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-family:'JetBrains Mono',monospace;font-size:0.65rem;color:var(--violet);text-transform:uppercase;margin-bottom:4px;">
+                            ${t.musicName || ('Versiyon ' + t.version)}
+                        </div>
+                        <audio src="${proxied(t.musicUrl)}" controls style="width:100%;height:32px;"></audio>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function generateMusic() {
+            const prompt = document.getElementById('musicPrompt').value.trim();
+            if (!prompt) { alert('Lütfen prompt girin!'); return; }
+
+            const instrumental = getMusicInstrumental();
+            const audioUsage = getMusicMode();
+            const style = document.getElementById('musicStyle').value.trim();
+            const lyrics = document.getElementById('musicLyrics').value.trim();
+
+            // Validate audio for required modes
+            const audioInput = document.getElementById('musicAudioFile');
+            const hasAudio = audioInput && audioInput.files && audioInput.files.length > 0;
+            if (AUDIO_REQUIRED_MODES.includes(audioUsage) && !hasAudio) {
+                alert(`"${audioUsage}" modu için MP3 dosyası zorunludur!`);
+                return;
+            }
+
+            const body = { prompt, model: 'SUNO', main_mode: instrumental ? 'Instrumental' : 'Vocal', mode: audioUsage, style, lyrics };
+
+            // audio_base64 yalnızca COVER / ADD_INSTRUMENTAL / ADD_VOCAL için gönderilir
+            if (AUDIO_REQUIRED_MODES.includes(audioUsage) && hasAudio) {
+                body.audio = await audioFileToBase64(audioInput.files[0]);
+            }
+
+            try {
+                const { response, data } = await apiCall('/api/generate/music', 'POST', body);
+                displayResponseWithReadable('musicResponse', 'musicReadable', data, !response.ok, 'task');
+                if (response.ok && data.task_id) document.getElementById('taskId').value = data.task_id;
+            } catch (error) {
+                displayResponseWithReadable('musicResponse', 'musicReadable', { error: error.message }, true, 'task');
+            }
+        }
+
+        /* ══════════════════════════════════════
+           TTS
+        ══════════════════════════════════════ */
+        const TTS_EMOTIONS = ['auto', 'happy', 'sad', 'angry', 'fearful', 'disgusted', 'surprised'];
+
+        function initTtsEmotions() {
+            const container = document.getElementById('ttsEmotionContainer');
+            if (!container || container.children.length > 0) return;
+            TTS_EMOTIONS.forEach(emo => {
+                const chip = document.createElement('span');
+                chip.className = 'tts-emotion-chip' + (emo === 'auto' ? ' active' : '');
+                chip.textContent = emo;
+                chip.dataset.emo = emo;
+                chip.onclick = () => {
+                    container.querySelectorAll('.tts-emotion-chip').forEach(c => c.classList.remove('active'));
+                    chip.classList.add('active');
+                };
+                container.appendChild(chip);
+            });
+        }
+
+        function syncTtsSlider(input, labelId) {
+            const val = parseFloat(input.value);
+            const label = document.getElementById(labelId);
+            if (label) label.textContent = Number.isInteger(val) ? val : val.toFixed(1);
+        }
+
+        async function loadTtsVoices() {
+            const btn = document.querySelector('#tab-tts button[onclick="loadTtsVoices()"]');
+            if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+            try {
+                const res = await fetch(`${API_BASE()}/api/tts/voices`, {
+                    headers: { 'Authorization': `Bearer ${API_KEY()}` }
+                });
+                const data = await res.json();
+                const sel = document.getElementById('ttsVoice');
+                sel.innerHTML = '';
+                if (data.voices && data.voices.length > 0) {
+                    data.voices.forEach(v => {
+                        const opt = document.createElement('option');
+                        opt.value = v.voiceId || v.voice_id || v.id || v.name;
+                        opt.textContent = v.displayName || v.display_name || v.name || opt.value;
+                        sel.appendChild(opt);
+                    });
+                } else {
+                    sel.innerHTML = '<option value="" disabled selected>Ses bulunamadı</option>';
+                }
+            } catch(e) {
+                alert('Sesler yüklenirken hata: ' + e.message);
+            }
+            if (btn) { btn.disabled = false; btn.textContent = '🔄 Yükle'; }
+        }
+
+        async function generateTts() {
+            const text = document.getElementById('ttsText').value.trim();
+            if (!text) { alert('Lütfen metin girin!'); return; }
+            const voiceId = document.getElementById('ttsVoice').value;
+            if (!voiceId) { alert('Lütfen önce sesleri yükleyip bir ses seçin!'); return; }
+
+            const activeEmo = document.querySelector('.tts-emotion-chip.active');
+            const emotion = activeEmo ? activeEmo.dataset.emo : 'auto';
+
+            const payload = {
+                text,
+                voiceId,
+                model: document.getElementById('ttsModel').value,
+                speed: parseFloat(document.getElementById('ttsSpeed').value),
+                pitch: parseInt(document.getElementById('ttsPitch').value),
+                volume: parseFloat(document.getElementById('ttsVolume').value),
+                emotion,
+            };
+
+            try {
+                const res = await fetch(`${API_BASE()}/api/generate/tts`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_KEY()}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                displayResponseWithReadable('ttsResponse', 'ttsReadable', data, !res.ok, 'task');
+            } catch(e) {
+                displayResponseWithReadable('ttsResponse', 'ttsReadable', { error: e.message }, true, 'task');
             }
         }
 
