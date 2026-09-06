@@ -2,70 +2,19 @@ import os
 import json
 import time
 import uuid
+import math
 import threading
-import atexit
-import requests
-import base64
-from io import BytesIO
-from PIL import Image
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, Response
 from flask_cors import CORS
+import requests
 import database as db
+import service
 
 app = Flask(__name__)
 CORS(app)
 
-# Graceful shutdown: polling thread'leri temiz kapansın
-_shutdown_event = threading.Event()
-atexit.register(lambda: _shutdown_event.set())
-
-# --- Configuration & Constants ---
-API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogImFub24iLAogICJpc3MiOiAic3VwYWJhc2UiLAogICJpYXQiOiAxNzM0OTY5NjAwLAogICJleHAiOiAxODkyNzM2MDAwCn0.4NnK23LGYvKPGuKI5rwQn2KbLMzzdE4jXpHwbGCqPqY"
-
 # Maximum concurrent tasks
 MAX_CONCURRENT_TASKS = 10
-
-# Deevid URLs
-URL_AUTH = "https://sp.deevid.ai/auth/v1/token?grant_type=password"
-URL_UPLOAD = "https://api.deevid.ai/file-upload/image"
-URL_SUBMIT_IMG = "https://api.deevid.ai/text-to-image/task/submit"
-URL_SUBMIT_VIDEO = "https://api.deevid.ai/image-to-video/task/submit"
-URL_SUBMIT_TXT_VIDEO = "https://api.deevid.ai/text-to-video/task/submit"
-URL_SUBMIT_CHARACTER_VIDEO = "https://api.deevid.ai/character-to-video/task/submit"
-URL_ASSETS = "https://api.deevid.ai/my-assets?limit=50&assetType=All&filter=CREATION"
-URL_VIDEO_TASKS = "https://api.deevid.ai/video/tasks?page=1&size=20"
-URL_QUOTA = "https://api.deevid.ai/subscription/plan"
-
-# ElevenLabs Configuration
-ELEVENLABS_API_KEY = "sk_d7cd9c0991b928ab3a7b9f04b0dedfcd7d56d790f2cca302"
-ELEVENLABS_TTS_URL = "https://api.elevenlabs.io/v1/text-to-speech"
-ELEVENLABS_VOICES_URL = "https://api.elevenlabs.io/v1/voices"
-
-# Frontend model name → Deevid model version mapping
-IMAGE_MODEL_MAP = {
-    'NANO_BANANA_PRO': 'MODEL_FOUR_NANO_BANANA_PRO',
-    'NANO_BANANA':     'MODEL_FOUR_NANO_BANANA',
-    'NANO_BANANA_2':   'MODEL_FOUR_NANO_BANANA_2',
-}
-
-
-# Frontend size value → Deevid size value mapping
-SIZE_MAP = {
-    '16:9': 'SIXTEEN_BY_NINE',
-    '9:16': 'NINE_BY_SIXTEEN',
-    '1:1':  'ONE_BY_ONE',
-    '3:4':  'THREE_BY_FOUR',
-    '4:3':  'FOUR_BY_THREE',
-    '3:2':  'THREE_BY_TWO',
-}
-
-DEVICE_HEADERS = {
-    "x-device": "TABLET",
-    "x-device-id": "3401879229",
-    "x-os": "WINDOWS",
-    "x-platform": "WEB",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-}
 
 # --- Helper Functions ---
 
@@ -89,673 +38,76 @@ def can_start_new_task(api_key_id):
     """Checks if a new task can be started (max concurrent limit per user)."""
     return db.get_running_task_count(api_key_id) < MAX_CONCURRENT_TASKS
 
-def refresh_quota(token):
-    """Optional but might be required to activate session."""
-    headers = {"authorization": f"Bearer {token}", **DEVICE_HEADERS}
-    try:
-        requests.get(URL_QUOTA, headers=headers)
-    except:
-        pass
-
-def login_with_retry(api_key_id, task_id=None):
-    """Tries logging in with available accounts until one succeeds.
-    
-    task_id parametresi verildiğinde, hesap alındığı milisaniyede veritabanında
-    task ile atomik olarak eşleştirilir (çökme koruması için).
-    """
-    tried_count = 0
-    max_tries = db.get_account_count(api_key_id)
-    
-    if max_tries == 0:
-        print("No accounts loaded!")
-        return None, None
-    
-    while tried_count < max_tries:
-        # DEĞİŞİKLİK: task_id'yi de gönderiyoruz.
-        # Böylece hesap alındığı milisaniyede veritabanında task ile eşleşiyor.
-        account = db.get_next_account(api_key_id, task_id)
-        if not account:
-            break
-        
-        tried_count += 1
-        headers = {
-            "apikey": API_KEY,
-        }
-        payload = {
-            "email": account['email'].strip(),
-            "password": account['password'].strip(),
-            "gotrue_meta_security": {}
-        }
-        try:
-            resp = requests.post(URL_AUTH, json=payload, headers=headers, timeout=10)
-            if resp.status_code == 200:
-                token = resp.json().get('access_token')
-                if token:
-                    refresh_quota(token)
-                    return token, account
-            print(f"Login failed for {account['email']}: {resp.status_code} - {resp.text}")
-            # Login başarısızsa hesabı hemen bırak
-            db.release_account(api_key_id, account['email'])
-        except Exception as e:
-            print(f"Login error for {account['email']}: {e}")
-            # Hata durumunda da bırak
-            db.release_account(api_key_id, account['email'])
-            
-    return None, None
-
-def resize_image(image_bytes):
-    """Resizes image if it exceeds 3000px on any side."""
-    try:
-        img = Image.open(BytesIO(image_bytes))
-        width, height = img.size
-        max_dim = max(width, height)
-        if max_dim > 3000:
-            scale = 3000 / max_dim
-            img = img.resize((round(width * scale), round(height * scale)), Image.LANCZOS)
-        
-        out = BytesIO()
-        img.save(out, format="PNG")
-        out.seek(0)
-        return out
-    except Exception as e:
-        print(f"Resize error: {e}")
-        return None
-
-def upload_image(token, image_bytes):
-    """Uploads image to API and returns image ID."""
-    headers = {"authorization": f"Bearer {token}", **DEVICE_HEADERS}
-    resized = resize_image(image_bytes)
-    if not resized: return None
-    
-    files = {"file": ("image.png", resized, "image/png")}
-    data = {"width": "1024", "height": "1536"} 
-    try:
-        resp = requests.post(URL_UPLOAD, headers=headers, files=files, data=data)
-        if resp.status_code in [200, 201]:
-            return resp.json()['data']['data']['id']
-    except Exception as e:
-        print(f"Upload error: {e}")
-    return None
-
-def process_image_task(task_id, params, api_key_id):
-    """Worker for image generation."""
-    try:
-        db.update_task_status(task_id, 'running')
-        try:
-            # task_id gönderiyoruz: hesap alındığı anda atomik olarak task'e yazılır (çökme koruması)
-            token, account = login_with_retry(api_key_id, task_id=task_id)
-            if not token:
-                db.update_task_status(task_id, 'failed')
-                db.add_task_log(task_id, "Insufficient quota.")
-                return
-
-            # NOT: db.update_task_account() artık burada çağrılmıyor.
-            # get_next_account() zaten task_id ile atomik olarak account_email'i yazdı.
-
-            headers = {"authorization": f"Bearer {token}", **DEVICE_HEADERS}
-            
-            user_image_ids = []
-            images = params.get('reference_images', [])
-
-            for img_base64 in images:
-                img_data = base64.b64decode(img_base64)
-                img_id = upload_image(token, img_data)
-                if img_id:
-                    user_image_ids.append(img_id)
-                else:
-                    db.update_task_status(task_id, 'failed')
-                    db.add_task_log(task_id, "Image upload failed.")
-                    db.release_account(api_key_id, account['email'])
-                    return
-
-            model_version_raw = params.get('model', 'NANO_BANANA_PRO')
-            model_version = IMAGE_MODEL_MAP.get(model_version_raw, model_version_raw)
-            image_size_raw = params.get('size', '16:9')
-            image_size = SIZE_MAP.get(image_size_raw, image_size_raw)
-            payload = {
-                "prompt": params.get('prompt', ''),
-                "imageSize": image_size,
-                "count": 1,
-                "modelType": "MODEL_FOUR",
-                "modelVersion": model_version
-            }
-            
-            if model_version in ('MODEL_FOUR_NANO_BANANA_PRO', 'MODEL_FOUR_NANO_BANANA_2'):
-                payload["resolution"] = params.get('resolution', '2K')
-                
-            if user_image_ids:
-                payload["userImageIds"] = user_image_ids
-
-            # Save token BEFORE submit so crash during submit can still recover
-            db.update_task_token(task_id, token)
-
-            resp = requests.post(URL_SUBMIT_IMG, headers=headers, json=payload)
-            resp_json = resp.json()
-            
-            error = resp_json.get('error')
-            if error and error.get('code') != 0:
-                db.update_task_status(task_id, 'failed')
-                db.add_task_log(task_id, f"Submit error: {resp_json}")
-                # Release account on submission failure
-                db.release_account(api_key_id, account['email'])
-                return
-
-            api_task_id = str(resp_json['data']['data']['taskId'])
-            db.update_task_external_data(task_id, api_task_id, token)
-            db.add_task_log(task_id, f"API Task ID: {api_task_id}")
-
-            ref_urls = resp_json['data']['data'].get('inputUserImageUrls') or []
-            if ref_urls:
-                db.update_task_reference_urls(task_id, ref_urls)
-
-            for _ in range(300):
-                if _shutdown_event.wait(2):
-                    return  # Shutdown — task 'running' kalır, recovery halleder
-                try:
-                    poll = requests.get(URL_ASSETS, headers=headers).json()
-                    groups = poll.get('data', {}).get('data', {}).get('groups', [])
-                    for group in groups:
-                        for item in group.get('items', []):
-                            creation = item.get('detail', {}).get('creation', {})
-                            if str(creation.get('taskId')) == api_task_id:
-                                if creation.get('taskState') == 'SUCCESS':
-                                    urls = creation.get('noWaterMarkImageUrl', [])
-                                    if urls:
-                                        db.update_task_status(task_id, 'completed', urls[0])
-                                        return
-                                elif creation.get('taskState') == 'FAIL':
-                                    db.update_task_status(task_id, 'failed')
-                                    # Release account on task FAIL
-                                    db.release_account(api_key_id, account['email'])
-                                    return
-                except:
-                    pass
-            db.update_task_status(task_id, 'timeout')
-            db.release_account(api_key_id, account['email'])
-        except Exception as e:
-            db.update_task_status(task_id, 'error')
-            db.add_task_log(task_id, str(e))
-            if 'account' in locals() and account:
-                db.release_account(api_key_id, account['email'])
-    except Exception:
-        db.update_task_status(task_id, 'error')
-
-def process_video_task(task_id, params, api_key_id):
-    """Worker for video generation."""
-    try:
-        db.update_task_status(task_id, 'running')
-        try:
-            # task_id gönderiyoruz: hesap alındığı anda atomik olarak task'e yazılır (çökme koruması)
-            token, account = login_with_retry(api_key_id, task_id=task_id)
-            if not token:
-                db.update_task_status(task_id, 'failed')
-                return
-
-            # NOT: db.update_task_account() artık burada çağrılmıyor.
-            # get_next_account() zaten task_id ile atomik olarak account_email'i yazdı.
-
-            headers = {"authorization": f"Bearer {token}", **DEVICE_HEADERS}
-            
-            # Model parametresini al (frontend'den VEO_3 veya SORA_2 gelir)
-            model = params.get('model', 'SORA_2')
-            size_raw = params.get('size', '16:9')
-            size = SIZE_MAP.get(size_raw, size_raw)
-            is_i2v = params.get('start_frame') is not None
-            
-            # VEO_3 modeli için
-            if model == 'VEO_3':
-                end_frame = params.get('end_frame')
-                payload = {
-                    "prompt": params.get('prompt', ''),
-                    "resolution": "720p",
-                    "lengthOfSecond": 8,
-                    "aiPromptEnhance": params.get('aiPromptEnhance', True),
-                    "size": size,
-                    "addEndFrame": bool(end_frame),
-                    "modelType": "MODEL_FIVE",
-                    "modelVersion": "MODEL_FIVE_FAST_3"
-                }
-                
-                if is_i2v:
-                    img_data = base64.b64decode(params['start_frame'])
-                    img_id = upload_image(token, img_data)
-                    if not img_id:
-                        db.update_task_status(task_id, 'failed')
-                        db.release_account(api_key_id, account['email'])
-                        return
-                    payload["userImageId"] = int(str(img_id).strip())
-                    url_submit = URL_SUBMIT_VIDEO
-                else:
-                    url_submit = URL_SUBMIT_TXT_VIDEO
-
-                if end_frame:
-                    end_frame_data = base64.b64decode(end_frame)
-                    end_frame_id = upload_image(token, end_frame_data)
-                    if not end_frame_id:
-                        db.update_task_status(task_id, 'failed')
-                        db.add_task_log(task_id, "End frame upload failed.")
-                        db.release_account(api_key_id, account['email'])
-                        return
-                    payload["endFrameUserImageId"] = int(str(end_frame_id).strip())
-
-                reference_images = params.get("reference_images", [])
-                if reference_images:
-                    ref_ids = []
-                    for ref_b64 in reference_images:
-                        ref_data = base64.b64decode(ref_b64)
-                        ref_id = upload_image(token, ref_data)
-                        if not ref_id:
-                            db.update_task_status(task_id, "failed")
-                            db.add_task_log(task_id, "Reference image upload failed.")
-                            db.release_account(api_key_id, account["email"])
-                            return
-                        ref_ids.append(int(str(ref_id).strip()))
-                    payload = {
-                        "prompt": params.get('prompt', ''),
-                        "resolution": "720p",
-                        "duration": 8,
-                        "size": size,
-                        "aiPromptEnhance": params.get('aiPromptEnhance', True),
-                        "modelVersion": "MODEL_FIVE_FAST_3",
-                        "userImageIds": ref_ids
-                    }
-                    url_submit = URL_SUBMIT_CHARACTER_VIDEO
-            
-            # SORA_2 modeli için (varsayılan)
-            else:
-                payload = {
-                    "prompt": params.get('prompt', ''),
-                    "resolution": "720p",
-                    "lengthOfSecond": 10,
-                    "aiPromptEnhance": True,
-                    "size": size,
-                    "addEndFrame": False
-                }
-
-                if is_i2v:
-                    img_data = base64.b64decode(params['start_frame'])
-                    img_id = upload_image(token, img_data)
-                    if not img_id:
-                        db.update_task_status(task_id, 'failed')
-                        db.release_account(api_key_id, account['email'])
-                        return
-                    payload["userImageId"] = int(str(img_id).strip())
-                    payload["modelVersion"] = "MODEL_ELEVEN_IMAGE_TO_VIDEO_V2"
-                    url_submit = URL_SUBMIT_VIDEO
-                else:
-                    payload["modelType"] = "MODEL_ELEVEN"
-                    payload["modelVersion"] = "MODEL_ELEVEN_TEXT_TO_VIDEO_V2"
-                    url_submit = URL_SUBMIT_TXT_VIDEO
-
-            # Save token BEFORE submit so crash during submit can still recover
-            db.update_task_token(task_id, token)
-
-            resp = requests.post(url_submit, headers=headers, json=payload)
-            resp_json = resp.json()
-            
-            error = resp_json.get('error')
-            if error and error.get('code') != 0:
-                db.update_task_status(task_id, 'failed')
-                db.add_task_log(task_id, f"Submit error: {resp_json}")
-                db.release_account(api_key_id, account['email'])
-                return
-
-            api_task_id = str(resp_json['data']['data']['taskId'])
-            db.update_task_external_data(task_id, api_task_id, token)
-            db.add_task_log(task_id, f"API Task ID: {api_task_id}")
-
-            data_obj = resp_json['data']['data']
-            orig_urls = data_obj.get('originalImageNameUrls') or []
-            end_frame_resp_url = data_obj.get('endFrameUserImageUrl')
-
-            reference_images = params.get("reference_images", [])
-            if reference_images:
-                # Karakter/referans görseller → reference_image_urls
-                if orig_urls:
-                    db.update_task_reference_urls(task_id, orig_urls)
-            else:
-                # Start / end frame → ayrı kolonlara kaydet
-                start_url = orig_urls[0] if orig_urls else None
-                end_url = end_frame_resp_url if end_frame_resp_url else None
-                if start_url or end_url:
-                    db.update_task_frame_urls(task_id, start_frame_url=start_url, end_frame_url=end_url)
-            
-            for _ in range(600):
-                if _shutdown_event.wait(5):
-                    return  # Shutdown — task 'running' kalır, recovery halleder
-                try:
-                    poll = requests.get(URL_VIDEO_TASKS, headers=headers).json()
-                    video_list = poll.get('data', {}).get('data', {}).get('data', [])
-                    if not video_list and isinstance(poll.get('data', {}).get('data'), list):
-                        video_list = poll['data']['data']
-                        
-                    for v in video_list:
-                        if str(v.get('taskId')) == api_task_id:
-                            if v.get('taskState') == 'SUCCESS':
-                                url = v.get('noWaterMarkVideoUrl') or v.get('noWatermarkVideoUrl')
-                                if isinstance(url, list) and url: url = url[0]
-                                if url:
-                                    db.update_task_status(task_id, 'completed', url)
-                                    return
-                            elif v.get('taskState') == 'FAIL':
-                                db.update_task_status(task_id, 'failed')
-                                db.release_account(api_key_id, account['email'])
-                                return
-                except:
-                    pass
-            db.update_task_status(task_id, 'timeout')
-            db.release_account(api_key_id, account['email'])
-        except Exception as e:
-            db.update_task_status(task_id, 'error')
-            db.add_task_log(task_id, str(e))
-            if 'account' in locals() and account:
-                db.release_account(api_key_id, account['email'])
-    except Exception:
-        db.update_task_status(task_id, 'error')
-
-def process_tts_task(task_id, params):
-    """Worker for ElevenLabs TTS generation."""
-    try:
-        db.update_task_status(task_id, 'running')
-        try:
-            if not ELEVENLABS_API_KEY:
-                db.update_task_status(task_id, 'failed')
-                db.add_task_log(task_id, "ElevenLabs API key not configured.")
-                return
-
-            voice_id = params.get('voice_id', 'EXAVITQu4vr4xnSDxMaL')  # Default: Bella
-            text = params.get('text', '')
-            
-            if not text:
-                db.update_task_status(task_id, 'failed')
-                db.add_task_log(task_id, "Text is required.")
-                return
-
-            # Voice settings
-            stability = params.get('stability', 0.5)
-            similarity_boost = params.get('similarity_boost', 0.75)
-            style = params.get('style', 0.0)
-            speed = params.get('speed', 1.0)
-            
-            url = f"{ELEVENLABS_TTS_URL}/{voice_id}"
-            
-            headers = {
-                "Accept": "audio/mpeg",
-                "Content-Type": "application/json",
-                "xi-api-key": ELEVENLABS_API_KEY
-            }
-            
-            payload = {
-                "text": text,
-                "model_id": params.get('model_id', 'eleven_multilingual_v2'),
-                "voice_settings": {
-                    "stability": stability,
-                    "similarity_boost": similarity_boost,
-                    "style": style,
-                    "use_speaker_boost": params.get('use_speaker_boost', True)
-                }
-            }
-            
-            if speed != 1.0:
-                payload["voice_settings"]["speed"] = speed
-
-            db.add_task_log(task_id, f"Generating TTS with voice: {voice_id}")
-            
-            response = requests.post(url, json=payload, headers=headers, timeout=60)
-            
-            if response.status_code == 200:
-                audio_base64 = base64.b64encode(response.content).decode('utf-8')
-                
-                db.update_task_status(task_id, 'completed', f"data:audio/mpeg;base64,{audio_base64}")
-                db.add_task_log(task_id, "TTS generation successful.")
-            else:
-                db.update_task_status(task_id, 'failed')
-                db.add_task_log(task_id, f"ElevenLabs API error: {response.status_code} - {response.text}")
-                
-        except Exception as e:
-            db.update_task_status(task_id, 'error')
-            db.add_task_log(task_id, str(e))
-    except Exception:
-        db.update_task_status(task_id, 'error')
-
-# --- Recovery Logic ---
-
-def check_deevid_for_task(task_id, mode, token, account_email=None, api_key_id=None):
-    """Checks Deevid API for a task that may have been submitted before crash.
-    Uses the saved token to check recent assets/tasks.
-    If found: saves external_task_id and starts polling.
-    If not found: marks task as failed and releases account.
-    """
-    try:
-        headers = {"authorization": f"Bearer {token}", **DEVICE_HEADERS}
-        
-        if mode == 'image':
-            # Check recent image assets
-            try:
-                poll = requests.get(URL_ASSETS, headers=headers, timeout=15).json()
-                groups = poll.get('data', {}).get('data', {}).get('groups', [])
-                for group in groups:
-                    for item in group.get('items', []):
-                        creation = item.get('detail', {}).get('creation', {})
-                        task_state = creation.get('taskState')
-                        api_task_id = creation.get('taskId')
-                        
-                        if api_task_id and task_state in ('PENDING', 'RUNNING', 'SUBMITTED'):
-                            # Found an active task — save and poll
-                            api_task_id = str(api_task_id)
-                            db.update_task_external_data(task_id, api_task_id, token)
-                            db.add_task_log(task_id, f"[RECOVERY] Found active task on Deevid: {api_task_id}")
-                            print(f"  [RECOVERY] Task {task_id}: found active Deevid task {api_task_id}, resuming polling")
-                            threading.Thread(
-                                target=poll_image_recovery,
-                                args=(task_id, api_task_id, token, account_email, api_key_id)
-                            ).start()
-                            return
-                        elif api_task_id and task_state == 'SUCCESS':
-                            urls = creation.get('noWaterMarkImageUrl', [])
-                            if urls:
-                                db.update_task_status(task_id, 'completed', urls[0])
-                                print(f"  [RECOVERY] Task {task_id}: found completed result on Deevid")
-                                return
-            except Exception as e:
-                print(f"  [RECOVERY] Task {task_id}: Deevid check failed: {e}")
-        
-        elif mode == 'video':
-            # Check recent video tasks
-            try:
-                poll = requests.get(URL_VIDEO_TASKS, headers=headers, timeout=15).json()
-                video_list = poll.get('data', {}).get('data', {}).get('data', [])
-                if not video_list and isinstance(poll.get('data', {}).get('data'), list):
-                    video_list = poll['data']['data']
-                
-                for v in video_list:
-                    task_state = v.get('taskState')
-                    api_task_id = v.get('taskId')
-                    
-                    if api_task_id and task_state in ('PENDING', 'RUNNING', 'SUBMITTED'):
-                        api_task_id = str(api_task_id)
-                        db.update_task_external_data(task_id, api_task_id, token)
-                        db.add_task_log(task_id, f"[RECOVERY] Found active video task on Deevid: {api_task_id}")
-                        print(f"  [RECOVERY] Task {task_id}: found active Deevid video task {api_task_id}, resuming polling")
-                        threading.Thread(
-                            target=poll_video_recovery,
-                            args=(task_id, api_task_id, token, account_email, api_key_id)
-                        ).start()
-                        return
-                    elif api_task_id and task_state == 'SUCCESS':
-                        url = v.get('noWaterMarkVideoUrl') or v.get('noWatermarkVideoUrl')
-                        if isinstance(url, list) and url: url = url[0]
-                        if url:
-                            db.update_task_status(task_id, 'completed', url)
-                            print(f"  [RECOVERY] Task {task_id}: found completed video on Deevid")
-                            return
-            except Exception as e:
-                print(f"  [RECOVERY] Task {task_id}: Deevid video check failed: {e}")
-        
-        # Nothing found on Deevid — submit never went through
-        db.update_task_status(task_id, 'failed')
-        db.add_task_log(task_id, "[RECOVERY] No active task found on Deevid after crash — submit likely never completed.")
-        if account_email and api_key_id:
-            db.release_account(api_key_id, account_email)
-            print(f"  [RECOVERY] Task {task_id}: no Deevid task found, account {account_email} released")
-        else:
-            print(f"  [RECOVERY] Task {task_id}: no Deevid task found, marked failed")
-    except Exception as e:
-        print(f"  [RECOVERY] Task {task_id}: check_deevid error: {e}")
-        db.update_task_status(task_id, 'failed')
-        if account_email and api_key_id:
-            db.release_account(api_key_id, account_email)
-
-def poll_image_recovery(task_id, api_task_id, token, account_email=None, api_key_id=None):
-    """Polling worker for recovered image tasks."""
-    try:
-        headers = {"authorization": f"Bearer {token}", **DEVICE_HEADERS}
-        for _ in range(300):
-            if _shutdown_event.wait(5):
-                return  # Shutdown — task 'running' kalır, recovery halleder
-            try:
-                poll = requests.get(URL_ASSETS, headers=headers).json()
-                groups = poll.get('data', {}).get('data', {}).get('groups', [])
-                for group in groups:
-                    for item in group.get('items', []):
-                        creation = item.get('detail', {}).get('creation', {})
-                        if str(creation.get('taskId')) == api_task_id:
-                            if creation.get('taskState') == 'SUCCESS':
-                                urls = creation.get('noWaterMarkImageUrl', [])
-                                if urls:
-                                    db.update_task_status(task_id, 'completed', urls[0])
-                                    return
-                            elif creation.get('taskState') == 'FAIL':
-                                db.update_task_status(task_id, 'failed')
-                                if account_email and api_key_id:
-                                    db.release_account(api_key_id, account_email)
-                                return
-            except:
-                pass
-        db.update_task_status(task_id, 'timeout')
-        if account_email and api_key_id:
-            db.release_account(api_key_id, account_email)
-    except Exception as e:
-        db.add_task_log(task_id, f"Recovery error: {str(e)}")
-        db.update_task_status(task_id, 'failed')
-        if account_email and api_key_id:
-            db.release_account(api_key_id, account_email)
-
-def poll_video_recovery(task_id, api_task_id, token, account_email=None, api_key_id=None):
-    """Polling worker for recovered video tasks."""
-    try:
-        headers = {"authorization": f"Bearer {token}", **DEVICE_HEADERS}
-        for _ in range(600):
-            if _shutdown_event.wait(10):
-                return  # Shutdown — task 'running' kalır, recovery halleder
-            try:
-                poll = requests.get(URL_VIDEO_TASKS, headers=headers).json()
-                video_list = poll.get('data', {}).get('data', {}).get('data', [])
-                if not video_list and isinstance(poll.get('data', {}).get('data'), list):
-                    video_list = poll['data']['data']
-                    
-                for v in video_list:
-                    if str(v.get('taskId')) == api_task_id:
-                        if v.get('taskState') == 'SUCCESS':
-                            url = v.get('noWaterMarkVideoUrl') or v.get('noWatermarkVideoUrl')
-                            if isinstance(url, list) and url: url = url[0]
-                            if url:
-                                db.update_task_status(task_id, 'completed', url)
-                                return
-                        elif v.get('taskState') == 'FAIL':
-                            db.update_task_status(task_id, 'failed')
-                            if account_email and api_key_id:
-                                db.release_account(api_key_id, account_email)
-                            return
-            except:
-                pass
-        db.update_task_status(task_id, 'timeout')
-        if account_email and api_key_id:
-            db.release_account(api_key_id, account_email)
-    except Exception as e:
-        db.add_task_log(task_id, f"Recovery error: {str(e)}")
-        db.update_task_status(task_id, 'failed')
-        if account_email and api_key_id:
-            db.release_account(api_key_id, account_email)
-
-def resume_incomplete_tasks():
-    """Recovers stale tasks and resumes polling for submitted ones."""
-    print("=" * 50)
-    print("[STARTUP] Starting crash recovery...")
-    
-    # Phase 1: Clean up truly stale tasks + get tasks that need Deevid check
-    try:
-        recovery_result = db.recover_stale_tasks()
-        if recovery_result['failed_count'] > 0:
-            print(f"[STARTUP] Marked {recovery_result['failed_count']} tasks as failed (never logged in)")
-    except Exception as e:
-        print(f"[STARTUP] Error during stale task recovery: {e}")
-        recovery_result = {'needs_check': []}
-    
-    # Phase 2: Check Deevid API for tasks that had token but no external_task_id
-    needs_check = recovery_result.get('needs_check', [])
-    if needs_check:
-        print(f"[STARTUP] Checking Deevid API for {len(needs_check)} tasks that may have been submitted...")
-        for t in needs_check:
-            threading.Thread(
-                target=check_deevid_for_task,
-                args=(t['task_id'], t['mode'], t['token'], t.get('account_email'), t.get('api_key_id'))
-            ).start()
-    
-    # Phase 3: Resume polling for tasks that WERE confirmed submitted (have external_task_id)
-    try:
-        tasks = db.get_incomplete_tasks()
-        if tasks:
-            print(f"[STARTUP] Resuming polling for {len(tasks)} confirmed submitted tasks...")
-        else:
-            print(f"[STARTUP] No confirmed tasks to resume.")
-            
-        for t in tasks:
-            task_id = t['task_id']
-            mode = t['mode']
-            external_id = t['external_task_id']
-            token = t['token']
-            account_email = t.get('account_email')
-            api_key_id = t.get('api_key_id')
-            
-            print(f"  [RESUME] Task {task_id} ({mode}) - External ID: {external_id}")
-            if mode == 'image':
-                threading.Thread(
-                    target=poll_image_recovery,
-                    args=(task_id, external_id, token, account_email, api_key_id)
-                ).start()
-            elif mode == 'video':
-                threading.Thread(
-                    target=poll_video_recovery,
-                    args=(task_id, external_id, token, account_email, api_key_id)
-                ).start()
-    except Exception as e:
-        print(f"[STARTUP] Error during task resume: {e}")
-    
-    print("[STARTUP] Crash recovery complete.")
-    print("=" * 50)
-
 TASK_FIELDS_BY_MODE = {
     'image': ['task_id', 'mode', 'status', 'result_url', 'prompt', 'model', 'size', 'resolution', 'reference_image_urls', 'logs', 'created_at'],
     'video': ['task_id', 'mode', 'status', 'result_url', 'prompt', 'model', 'size', 'resolution', 'duration', 'start_frame_url', 'end_frame_url', 'reference_image_urls', 'logs', 'created_at'],
-    'tts':   ['task_id', 'mode', 'status', 'result_url', 'prompt', 'model', 'logs', 'created_at'],
+    'tts':   ['task_id', 'mode', 'status', 'result_url', 'prompt', 'model', 'voice_id', 'speed', 'pitch', 'volume', 'emotion', 'logs', 'created_at'],
+    'music': ['task_id', 'mode', 'status', 'result_url', 'prompt', 'model', 'style', 'lyrics', 'instrumental', 'audio_usage', 'reference_audio_url', 'logs', 'created_at'],
 }
 
 def filter_task_fields(task):
     """Filters task dict fields based on mode."""
     if not task:
         return task
-    fields = TASK_FIELDS_BY_MODE.get(task.get('mode'), list(task.keys()))
-    return {k: task[k] for k in fields if k in task}
+    mode = task.get('mode')
+    fields = TASK_FIELDS_BY_MODE.get(mode, list(task.keys()))
+    result = {k: task[k] for k in fields if k in task}
+    # Convert instrumental integer to boolean for music tasks
+    if mode == 'music' and 'instrumental' in result:
+        result['instrumental'] = bool(result.get('instrumental'))
+    return result
+
+# --- Error Handler ---
 
 @app.errorhandler(Exception)
 def handle_exception(e):
     print(f"[ERROR] {request.method} {request.path} → {type(e).__name__}: {e}")
     return jsonify({"error": "Internal server error"}), 500
 
+# --- Page Routes ---
+
 @app.route('/', methods=['GET'])
 def index():
     return render_template('index.html')
+
+@app.route('/api-doc', methods=['GET'])
+def api_doc():
+    return render_template('apiDocNoTTS.html')
+
+# --- Models Endpoint ---
+
+@app.route('/api/models', methods=['GET'])
+def get_models():
+    api_key_id = verify_api_key()
+    if not api_key_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    return jsonify(service.get_available_models())
+
+@app.route('/api/models/<mode>', methods=['GET'])
+def get_models_by_mode(mode):
+    api_key_id = verify_api_key()
+    if not api_key_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    models = service.get_available_models(mode)
+    if not models:
+        return jsonify({"error": f"Unknown mode: {mode}"}), 404
+    return jsonify(models)
+
+# --- Proxy ---
+
+@app.route('/api/proxy', methods=['GET'])
+def proxy():
+    url = request.args.get('url')
+    if not url:
+        return jsonify({"error": "url parametresi gerekli"}), 400
+
+    range_header = request.headers.get('Range')
+    stream_content, status_code, headers = service.proxy_request(url, range_header)
+
+    return Response(stream_content, status=status_code, headers=headers)
+
+
+# --- Generation Endpoints ---
 
 @app.route('/api/generate/image', methods=['POST'])
 def generate_image():
@@ -766,13 +118,29 @@ def generate_image():
     data = request.json
     if not data or 'prompt' not in data:
         return jsonify({"error": "Prompt required"}), 400
-    
-    images = data.get('reference_images', [])
-    if isinstance(images, list) and len(images) > 5:
-        return jsonify({"error": "Maximum 5 images allowed"}), 400
 
-    if len(data.get('prompt', '')) > 4000:
-        return jsonify({"error": "Prompt must be 4000 characters or less"}), 400
+    image_models = service.get_available_models('image')
+    default_model = image_models[0]['id'] if image_models else 'default'
+    model = data.get('model') or default_model
+    model_meta = next((m for m in image_models if m['id'] == model), None)
+    
+    if not model_meta:
+        return jsonify({"error": f"Unknown model: {model}"}), 400
+
+    # 1. Validate Prompt
+    max_prompt = model_meta.get('max_prompt_length', 4000)
+    if len(data.get('prompt', '')) > max_prompt:
+        return jsonify({"error": f"Prompt must be {max_prompt} characters or less"}), 400
+
+    # 2. Validate Reference Images
+    images = data.get('reference_images', [])
+    supports_ref = model_meta.get('supports_reference_images', False)
+    max_ref = model_meta.get('max_reference_images', 5)
+    if images:
+        if not supports_ref:
+            return jsonify({"error": f"{model} model does not support reference_images"}), 400
+        if isinstance(images, list) and len(images) > max_ref:
+            return jsonify({"error": f"Maximum {max_ref} images allowed"}), 400
 
     if db.get_account_count(api_key_id) == 0:
         return jsonify({"error": "No quota available"}), 503
@@ -783,11 +151,26 @@ def generate_image():
             "error": "Maximum concurrent tasks reached",
             "message": f"Currently {running_count}/{MAX_CONCURRENT_TASKS} tasks running. Please wait."
         }), 429
+
+    # 3. Resolve Size
+    size = data.get('size')
+    supported_sizes = model_meta.get('supported_sizes', [])
+    if supported_sizes:
+        if size not in supported_sizes:
+            size = model_meta.get('default_size') or supported_sizes[0]
+    else:
+        size = size or '16:9'
+
+    # 4. Resolve Resolution
+    resolution = data.get('resolution')
+    supported_resolutions = model_meta.get('supported_resolutions', [])
+    if supported_resolutions:
+        if resolution not in supported_resolutions:
+            resolution = model_meta.get('default_resolution') or supported_resolutions[0]
+    else:
+        resolution = None
     
     task_id = str(uuid.uuid4())
-    model = data.get('model', 'NANO_BANANA_PRO')
-    size = data.get('size', '16:9')
-    resolution = data.get('resolution', '2K') if model in ('NANO_BANANA_PRO', 'NANO_BANANA_2') else None
     db.create_task(api_key_id, task_id, 'image',
                    prompt=data.get('prompt'),
                    model=model,
@@ -795,8 +178,9 @@ def generate_image():
                    resolution=resolution,
                    duration=None)
     
-    threading.Thread(target=process_image_task, args=(task_id, data, api_key_id)).start()
+    threading.Thread(target=service.process_image_task, args=(task_id, data, api_key_id)).start()
     return jsonify({"task_id": task_id})
+
 
 @app.route('/api/generate/video', methods=['POST'])
 def generate_video():
@@ -808,21 +192,51 @@ def generate_video():
     if not data or 'prompt' not in data:
         return jsonify({"error": "Prompt required"}), 400
 
-    if len(data.get('prompt', '')) > 2000:
-        return jsonify({"error": "Prompt must be 2000 characters or less"}), 400
+    video_models = service.get_available_models('video')
+    default_model = video_models[0]['id'] if video_models else 'default'
+    model = data.get('model') or default_model
+    model_meta = next((m for m in video_models if m['id'] == model), None)
+    
+    if not model_meta:
+        return jsonify({"error": f"Unknown model: {model}"}), 400
+
+    # 1. Validate Prompt
+    max_prompt = model_meta.get('max_prompt_length', 2000)
+    if len(data.get('prompt', '')) > max_prompt:
+        return jsonify({"error": f"Prompt must be {max_prompt} characters or less"}), 400
+
+    # 2. Validate Frame inputs
+    # Check start_frame support
+    has_start = bool(data.get('start_frame'))
+    requires_start = model_meta.get('requires_start_frame', False)
+    supports_start = model_meta.get('supports_start_frame', True)
+    if requires_start and not has_start:
+        return jsonify({"error": f"{model} model requires a start frame (image)"}), 400
+    if has_start and not supports_start:
+        return jsonify({"error": f"{model} model does not support start_frame"}), 400
+
+    # Check end_frame support
+    has_end = bool(data.get('end_frame'))
+    supports_end = model_meta.get('supports_end_frame', False)
+    if has_end and not supports_end:
+        return jsonify({"error": f"{model} model does not support end_frame"}), 400
+    if has_end and not has_start:
+        return jsonify({"error": "end_frame requires image (start frame) to be provided"}), 400
+
+    # Check reference images support
+    ref_images = data.get('reference_images', [])
+    supports_ref = model_meta.get('supports_reference_images', False)
+    max_ref = model_meta.get('max_reference_images', 0)
+    if ref_images:
+        if not supports_ref:
+            return jsonify({"error": f"{model} model does not support reference_images"}), 400
+        if len(ref_images) > max_ref:
+            return jsonify({"error": f"Maximum {max_ref} reference images allowed"}), 400
+        if has_start or has_end:
+            return jsonify({"error": "reference_images cannot be used together with image or end_frame"}), 400
 
     if db.get_account_count(api_key_id) == 0:
         return jsonify({"error": "No quota available"}), 503
-
-    if data.get('model') == 'VEO_3' and data.get('end_frame') and not data.get('start_frame'):
-        return jsonify({"error": "end_frame requires image (start frame) to be provided"}), 400
-
-    if data.get('model') == 'VEO_3':
-        reference_images = data.get('reference_images', [])
-        if isinstance(reference_images, list) and len(reference_images) > 3:
-            return jsonify({"error": "Maximum 3 reference images allowed"}), 400
-        if reference_images and (data.get('start_frame') or data.get('end_frame')):
-            return jsonify({"error": "reference_images cannot be used together with image or end_frame"}), 400
     
     running_count = db.get_running_task_count(api_key_id)
     if running_count >= MAX_CONCURRENT_TASKS:
@@ -831,11 +245,52 @@ def generate_video():
             "message": f"Currently {running_count}/{MAX_CONCURRENT_TASKS} tasks running. Please wait."
         }), 429
     
+    # 3. Resolve Size
+    size = data.get('size')
+    supported_sizes = model_meta.get('supported_sizes', [])
+    if supported_sizes:
+        if size not in supported_sizes:
+            size = model_meta.get('default_size') or supported_sizes[0]
+    else:
+        size = size or '16:9'
+
+    # 4. Resolve Duration
+    duration = data.get('duration')
+    supported_durations = model_meta.get('supported_durations', [])
+    if duration is not None:
+        try:
+            duration = int(duration)
+        except ValueError:
+            duration = None
+            
+    if supported_durations:
+        if duration not in supported_durations:
+            duration = model_meta.get('default_duration') or supported_durations[0]
+    else:
+        duration = duration or model_meta.get('duration') or 10
+
+    # 5. Resolve Resolution
+    resolution = data.get('resolution')
+    supported_resolutions = model_meta.get('supported_resolutions', [])
+    if supported_resolutions:
+        if resolution not in supported_resolutions:
+            resolution = model_meta.get('default_resolution') or supported_resolutions[0]
+    else:
+        resolution = resolution or model_meta.get('resolution') or '720p'
+
+    # 6. Apply constraints if any
+    constraints = model_meta.get('constraints', [])
+    for c in constraints:
+        cond = c.get('if', {})
+        then = c.get('then', {})
+        if 'resolution' in cond and cond['resolution'] == resolution:
+            if 'duration' in then and duration not in then['duration']:
+                duration = then['duration'][0]
+        if 'duration' in cond and cond['duration'] == duration:
+            if 'resolution' in then and resolution != then['resolution']:
+                resolution = then['resolution']
+                
     task_id = str(uuid.uuid4())
-    model = data.get('model', 'SORA_2')
-    size = data.get('size', '16:9')
-    resolution = '720p'
-    duration = 8 if model == 'VEO_3' else 10
     db.create_task(api_key_id, task_id, 'video',
                    prompt=data.get('prompt'),
                    model=model,
@@ -843,8 +298,9 @@ def generate_video():
                    resolution=resolution,
                    duration=duration)
     
-    threading.Thread(target=process_video_task, args=(task_id, data, api_key_id)).start()
+    threading.Thread(target=service.process_video_task, args=(task_id, data, api_key_id)).start()
     return jsonify({"task_id": task_id})
+
 
 @app.route('/api/generate/tts', methods=['POST'])
 def generate_tts():
@@ -855,9 +311,9 @@ def generate_tts():
     data = request.json
     if not data or 'text' not in data:
         return jsonify({"error": "Text required"}), 400
-    
-    if not ELEVENLABS_API_KEY:
-        return jsonify({"error": "ElevenLabs API key not configured"}), 500
+
+    if db.get_account_count(api_key_id) == 0:
+        return jsonify({"error": "No quota available"}), 503
     
     running_count = db.get_running_task_count(api_key_id)
     if running_count >= MAX_CONCURRENT_TASKS:
@@ -866,39 +322,89 @@ def generate_tts():
             "message": f"Currently {running_count}/{MAX_CONCURRENT_TASKS} tasks running. Please wait."
         }), 429
     
+    tts_models = service.get_available_models('tts')
+    default_model = tts_models[0]['id'] if tts_models else 'default'
+    model = data.get('model') or default_model
+
     task_id = str(uuid.uuid4())
-    db.create_task(api_key_id, task_id, 'tts')
+    db.create_task(api_key_id, task_id, 'tts',
+                   prompt=data.get('text'),
+                   model=model,
+                   voice_id=data.get('voiceId'),
+                   speed=data.get('speed'),
+                   pitch=data.get('pitch'),
+                   volume=data.get('volume'),
+                   emotion=data.get('emotion'))
     
-    threading.Thread(target=process_tts_task, args=(task_id, data)).start()
+    threading.Thread(target=service.process_tts_task, args=(task_id, data, api_key_id)).start()
     return jsonify({"task_id": task_id})
 
-@app.route('/api/elevenlabs/voices', methods=['GET'])
-def get_elevenlabs_voices():
+@app.route('/api/generate/music', methods=['POST'])
+def generate_music():
     api_key_id = verify_api_key()
     if not api_key_id:
         return jsonify({"error": "Unauthorized"}), 401
-    
-    if not ELEVENLABS_API_KEY:
-        return jsonify({"error": "ElevenLabs API key not configured"}), 500
-    
-    try:
-        headers = {"xi-api-key": ELEVENLABS_API_KEY}
-        response = requests.get(ELEVENLABS_VOICES_URL, headers=headers)
-        
-        if response.status_code == 200:
-            voices_data = response.json()
-            simplified_voices = [
-                {
-                    "name": voice.get("name"),
-                    "voice_id": voice.get("voice_id")
-                }
-                for voice in voices_data.get("voices", [])
-            ]
-            return jsonify({"voices": simplified_voices})
-        else:
-            return jsonify({"error": f"Failed to fetch voices: {response.text}"}), response.status_code
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+
+    data = request.json
+    if not data or 'prompt' not in data:
+        return jsonify({"error": "Prompt required"}), 400
+
+    if db.get_account_count(api_key_id) == 0:
+        return jsonify({"error": "No quota available"}), 503
+
+    running_count = db.get_running_task_count(api_key_id)
+    if running_count >= MAX_CONCURRENT_TASKS:
+        return jsonify({
+            "error": "Maximum concurrent tasks reached",
+            "message": f"Currently {running_count}/{MAX_CONCURRENT_TASKS} tasks running. Please wait."
+        }), 429
+
+    music_models = service.get_available_models('music')
+    default_model = music_models[0]['id'] if music_models else 'default'
+    model = data.get('model') or default_model
+    task_id = str(uuid.uuid4())
+
+    # Frontend → API mapping
+    main_mode = data.get('main_mode', 'Vocal')
+    instrumental = 1 if main_mode == 'Instrumental' else 0
+    audio_usage = data.get('mode', 'TEXT')
+
+    db.create_task(api_key_id, task_id, 'music',
+                   prompt=data.get('prompt'),
+                   model=model,
+                   style=data.get('style'),
+                   lyrics=data.get('lyrics'),
+                   instrumental=instrumental,
+                   audio_usage=audio_usage)
+
+    # Worker'a Deevid uyumlu parametreler gönder
+    worker_data = {
+        'prompt': data.get('prompt', ''),
+        'model': model,
+        'style': data.get('style', ''),
+        'lyrics': data.get('lyrics', ''),
+        'instrumental': main_mode == 'Instrumental',
+        'audioUsage': audio_usage,
+        'audio_base64': data.get('audio'),
+    }
+
+    threading.Thread(target=service.process_music_task, args=(task_id, worker_data, api_key_id)).start()
+    return jsonify({"task_id": task_id})
+
+# --- TTS Voices ---
+
+@app.route('/api/tts/voices', methods=['GET'])
+def get_tts_voices():
+    api_key_id = verify_api_key()
+    if not api_key_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    voices, error = service.get_tts_voices(api_key_id)
+    if error:
+        return jsonify({"error": error}), 503 if error == "No quota available" else 500
+    return jsonify({"voices": voices})
+
+# --- Status Endpoints ---
 
 @app.route('/api/status/<task_id>', methods=['GET'])
 def get_task_status(task_id):
@@ -909,7 +415,10 @@ def get_task_status(task_id):
     task = db.get_task(api_key_id, task_id)
     if not task:
         return jsonify({"error": "Task not found"}), 404
-    return jsonify(filter_task_fields(task))
+    
+    result = filter_task_fields(task)
+    
+    return jsonify(result)
     
 @app.route('/api/status', methods=['GET'])
 def get_all_tasks_status():
@@ -932,8 +441,8 @@ def get_all_tasks_status():
         except ValueError:
             return jsonify({"error": "Invalid per_page parameter"}), 400
 
-        tasks, total = db.get_tasks_paginated(api_key_id, page, per_page)
-        import math
+        tasks_raw, total = db.get_tasks_paginated(api_key_id, page, per_page)
+        tasks = [filter_task_fields(t) for t in tasks_raw]
         total_pages = math.ceil(total / per_page) if total > 0 else 1
 
         return jsonify({
@@ -946,11 +455,15 @@ def get_all_tasks_status():
             "total_pages": total_pages
         })
 
+    tasks_raw = db.get_all_tasks(api_key_id)
+    tasks = [filter_task_fields(t) for t in tasks_raw]
     return jsonify({
-        "tasks": db.get_all_tasks(api_key_id),
+        "tasks": tasks,
         "running_tasks": running_count,
         "max_concurrent": MAX_CONCURRENT_TASKS
     })
+
+# --- Quota & Account Endpoints ---
 
 @app.route('/api/quota', methods=['GET'])
 def get_quota():
